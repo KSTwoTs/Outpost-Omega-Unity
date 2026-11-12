@@ -28,7 +28,8 @@ namespace Outpost.Sim
     /// <summary>
     /// The Command-mode simulation, ported from game/rts/sim.py: bases, buildings and their upgrades,
     /// production, towers, unit orders, targeting, counters / armor / bonus damage, squads, projectiles,
-    /// unit abilities and buffs, hero respawn, economy.
+    /// unit abilities and buffs, hero respawn, economy, research, healer and shield auras, stealth and
+    /// detection.
     /// Everything runs in game pixels and seconds; the view layer only reads it.
     /// </summary>
     public class Battle
@@ -42,6 +43,12 @@ namespace Outpost.Sim
         public readonly List<Projectile> projectiles = new List<Projectile>();
         public readonly List<Strike> strikes = new List<Strike>();
         public readonly List<Zone> zones = new List<Zone>();
+        public readonly List<ScanArea> scans = new List<ScanArea>();
+        /// <summary>Cloaked unit ids each faction can currently see.</summary>
+        public readonly Dictionary<string, HashSet<int>> detected = new Dictionary<string, HashSet<int>>
+        {
+            { "player", new HashSet<int>() }, { "alien", new HashSet<int>() },
+        };
         public string leader = "vanguard";      // rts.json "leaders" passive for the player
         public float alienArmyMult = 1f;        // difficulty (rts.json ai.difficulties.army_mult)
         public readonly Dictionary<string, Faction> factions = new Dictionary<string, Faction>();
@@ -58,7 +65,7 @@ namespace Outpost.Sim
         readonly int hw, hh;
         readonly List<Entity>[] cells;
         readonly List<Entity> query = new List<Entity>();
-        float recountT;
+        float recountT, supportT, detectT;
 
         public Battle(MapData map)
         {
@@ -124,6 +131,11 @@ namespace Outpost.Sim
             var p = b.site.sockets[socket];
             var t = new Tower(kind, b.faction, p[0], p[1], b, socket);
             t.angle = Mathf.Atan2(p[1] - b.y, p[0] - b.x);
+            if (factions[b.faction].research.Contains("turret_plating"))
+            {
+                t.maxHp *= 1.4f;
+                t.hp = t.maxHp * 0.1f;
+            }
             if (instant) Finish(t);
             b.sockets[socket] = t;
             towers.Add(t);
@@ -225,6 +237,56 @@ namespace Outpost.Sim
             return null;
         }
 
+        /// <summary>Starts a research at the building that offers it (rts.json buildings.*.research).</summary>
+        public string QueueResearch(Building b, string rid)
+        {
+            var f = factions[b.faction];
+            var all = b.Research;
+            var r = all?[rid];
+            if (r == null) return "Unknown research";
+            if (f.research.Contains(rid) || f.researching.Contains(rid)) return "Already researched";
+            string after = GameData.S(r, "after");
+            if (after != null && !f.research.Contains(after)) return "Research " + GameData.S(all[after], "name", after) + " first";
+            if (f.tech < GameData.I(r, "tech", 1)) return $"Needs Tech {GameData.I(r, "tech", 1)}";
+            if (!b.Done) return "Still building";
+            if (b.queue.Count >= 5) return "Queue full";
+            int cost = GameData.I(r, "cost", 200);
+            if (!Pay(b.faction, cost)) return "Not enough " + f.ResName;
+            float t = GameData.F(r, "time", 30);
+            f.researching.Add(rid);
+            b.queue.Add(new QueueItem { type = "research", id = rid, t = t, total = t, cost = cost, pop = 0 });
+            return null;
+        }
+
+        /// <summary>A finished research takes effect on units and towers already in the field.</summary>
+        void ApplyResearch(string faction, string rid)
+        {
+            float vetHp = GameData.F(GameData.Rts["veterancy"], "hp", 0.1f);
+            foreach (var u in units)
+            {
+                if (!u.alive || u.faction != faction || u.data == null) continue;
+                var m = UnitMods(faction, u.kind);
+                float member = GameData.F(u.data, "hp", 50) * m.hp * (1 + vetHp * u.rank);
+                if (Mathf.Abs(member - u.memberHp) > 0.01f)
+                {
+                    float ratio = u.Ratio;
+                    u.memberHp = member;
+                    u.maxHp = member * u.squad;
+                    u.hp = u.maxHp * ratio;
+                }
+                u.speed = GameData.F(u.data, "speed", 60) * m.spd;
+                u.range = GameData.F(u.data, "range", 100) * m.rng;
+            }
+            if (rid == "turret_plating")
+                foreach (var t in towers)
+                    if (t.alive && t.faction == faction)
+                    {
+                        float ratio = t.Ratio;
+                        t.maxHp *= 1.4f;
+                        t.hp = t.maxHp * ratio;
+                    }
+        }
+
         public void CancelQueue(Building b, int index)
         {
             if (index < 0 || index >= b.queue.Count) return;
@@ -232,11 +294,134 @@ namespace Outpost.Sim
             b.queue.RemoveAt(index);
             factions[b.faction].res += q.cost;
             factions[b.faction].popUsed -= q.pop;
+            if (q.type == "research") factions[b.faction].researching.Remove(q.id);
+        }
+
+        // ------------------------------------------------------------------ stealth and detection
+        public static bool Stealthed(Entity e) => e is Unit u && (u.stealth || u.Has("camo"));
+
+        /// <summary>True when the faction can't see or target e: burrowed, or cloaked and not detected.</summary>
+        public bool HiddenFrom(Entity e, string faction)
+        {
+            if (!(e is Unit u) || u.faction == faction) return false;
+            if (u.Has("burrowed")) return true;
+            return Stealthed(u) && !(detected.TryGetValue(faction, out var seen) && seen.Contains(u.id));
+        }
+
+        /// <summary>Everything of a faction that reveals cloaked enemies, as (x, y, radius).</summary>
+        List<Vector3> Detectors(string faction)
+        {
+            var cfg = GameData.Rts["detection"];
+            float near = GameData.F(cfg, "near", 80);
+            var res = new List<Vector3>();
+            foreach (var u in units)
+            {
+                if (!u.alive || u.faction != faction) continue;
+                float r = u.detect;
+                if (u.kind == "commander") r = Mathf.Max(r, GameData.F(cfg, "commander", 200));
+                else if (u.kind == "queen") r = Mathf.Max(r, GameData.F(cfg, "queen", 240));
+                res.Add(new Vector3(u.x, u.y, Mathf.Max(r, near)));
+            }
+            foreach (var b in buildings)
+            {
+                if (!b.alive || b.faction != faction || !b.Done) continue;
+                float r = GameData.F(b.data, "detect", b.kind == "hive" ? GameData.F(cfg, "hive", 200) : 0);
+                if (r > 0) res.Add(new Vector3(b.x, b.y, r));
+            }
+            foreach (var t in towers)
+                if (t.alive && t.faction == faction && t.Done && t.kind == "spine")
+                    res.Add(new Vector3(t.x, t.y, GameData.F(cfg, "spine", 180)));
+            if (faction == "player")
+                foreach (var s in scans) res.Add(new Vector3(s.pos.x, s.pos.y, s.r));
+            return res;
+        }
+
+        void UpdateDetection()
+        {
+            foreach (var kv in detected)
+            {
+                kv.Value.Clear();
+                List<Vector3> dets = null;
+                foreach (var u in units)
+                {
+                    if (!u.alive || u.faction == kv.Key || !Stealthed(u)) continue;
+                    if (dets == null) dets = Detectors(kv.Key);
+                    foreach (var d in dets)
+                        if (D2(u.x, u.y, d.x, d.y) <= d.z * d.z)
+                        {
+                            kv.Value.Add(u.id);
+                            break;
+                        }
+                }
+            }
+        }
+
+        /// <summary>Sensor Array: reveals cloaked units around a spot anywhere on the map for a while.</summary>
+        public string Scan(Building b, Vector2 at)
+        {
+            var sc = b.data?["scan"];
+            if (sc == null || !b.Done) return "Can't scan";
+            if (b.scanCd > 0) return $"Recharging ({(int)b.scanCd} s)";
+            b.scanCd = GameData.F(sc, "cooldown", 45);
+            float r = GameData.F(sc, "radius", 260);
+            scans.Add(new ScanArea { pos = at, r = r, t = GameData.F(sc, "time", 12) });
+            fx?.Zone(at, r, GameData.F(sc, "time", 12), "scan");
+            UpdateDetection();
+            return null;
+        }
+
+        // ------------------------------------------------------------------ support
+        /// <summary>Healers (Medics, Menders, Sparrow) and Shield Drones; ticks every 0.5 s per unit.</summary>
+        void UnitAuras(Unit u)
+        {
+            if (u.heal != null)
+            {
+                float radius = GameData.F(u.heal, "radius", 130);
+                float amt = GameData.F(u.heal, "rate", 9) * 0.5f * (1 + 0.1f * u.rank);
+                var classes = GameData.List(u.heal, "classes");
+                foreach (var e in Near(u.x, u.y, radius))
+                {
+                    if (e == u || !e.alive || e.faction != u.faction || e.hp >= e.maxHp || !e.Done) continue;
+                    if (System.Array.IndexOf(classes, e.cls) < 0) continue;
+                    if (D2(u.x, u.y, e.x, e.y) > (radius + e.radius) * (radius + e.radius)) continue;
+                    e.hp = Mathf.Min(e.maxHp, e.hp + amt * (e.cls == "bld" ? 3 : 1));
+                    u.fireT = 0.3f;
+                }
+            }
+            if (u.shieldAura != null)
+            {
+                float radius = GameData.F(u.shieldAura, "radius", 130), cap = GameData.F(u.shieldAura, "cap", 70);
+                float add = GameData.F(u.shieldAura, "rate", 12) * 0.5f;
+                foreach (var e in Near(u.x, u.y, radius))
+                    if (e != u && e.alive && e is Unit && e.faction == u.faction && e.shield < cap &&
+                        D2(u.x, u.y, e.x, e.y) <= (radius + e.radius) * (radius + e.radius))
+                        e.shield = Mathf.Min(cap, e.shield + add);
+            }
+        }
+
+        /// <summary>Shield Generators keep a shield on every building and tower around them; every 0.5 s.</summary>
+        void UpdateSupport()
+        {
+            foreach (var g in buildings)
+            {
+                var sh = g.data?["shield"];
+                if (sh == null || !g.alive || !g.Done) continue;
+                float r = GameData.F(sh, "radius", 360), frac = GameData.F(sh, "frac", 0.3f), add = GameData.F(sh, "rate", 40) * 0.5f;
+                foreach (var e in All())
+                {
+                    if (e.IsUnit || !e.alive || e.faction != g.faction || D2(e.x, e.y, g.x, g.y) > r * r) continue;
+                    float cap = e.maxHp * frac;
+                    if (e.shield < cap) e.shield = Mathf.Min(cap, e.shield + add);
+                }
+            }
         }
 
         public Unit SpawnUnit(string kind, string faction, float x, float y)
         {
-            var u = new Unit(kind, faction, x, y, UnitMods(faction, kind).hp);
+            var mods = UnitMods(faction, kind);
+            var u = new Unit(kind, faction, x, y, mods.hp);
+            u.speed *= mods.spd;
+            u.range *= mods.rng;
             var owner = factions[faction];
             if (owner.hero == null && GameData.F(u.data, "respawn") > 0) owner.hero = u;   // Commander / Queen
             if (!u.flying)
@@ -251,10 +436,14 @@ namespace Outpost.Sim
             return u;
         }
 
-        /// <summary>(hp, damage) multipliers: the player's leader passive, alien tech level and difficulty.</summary>
-        public (float hp, float dmg) UnitMods(string faction, string kind)
+        /// <summary>
+        /// (hp, damage, speed, range) multipliers: research and the leader passive for the player;
+        /// tech level, evolutions and difficulty for the aliens.
+        /// </summary>
+        public (float hp, float dmg, float spd, float rng) UnitMods(string faction, string kind)
         {
-            float hp = 1f, dmg = 1f;
+            float hp = 1f, dmg = 1f, spd = 1f, rng = 1f;
+            var done = factions[faction].research;
             var d = GameData.Unit(kind);
             string cls = GameData.S(d, "class", "inf");
             if (faction == "player")
@@ -266,6 +455,14 @@ namespace Outpost.Sim
                     dmg *= GameData.F(L, "hero_damage", 1f);
                 }
                 dmg *= GameData.F(L?["unit_damage"], kind, 1f) * GameData.F(L?["class_damage"], cls, 1f);
+                rng *= GameData.F(L?["unit_range"], kind, 1f);
+                if (cls == "inf" && done.Contains("inf_armor")) hp *= 1.25f;
+                if (cls == "veh" && done.Contains("veh_armor")) hp *= 1.2f;
+                if (cls == "air" && done.Contains("afterburners")) spd *= 1.25f;
+                if (cls == "air" && done.Contains("air_weapons")) dmg *= 1.2f;
+                if (done.Contains("weapons1")) dmg *= 1.15f;
+                if (done.Contains("weapons2")) dmg *= 1.15f;
+                if ((kind == "commandos" || kind == "snipers") && done.Contains("jump_jets")) spd *= 1.2f;
             }
             else
             {
@@ -274,8 +471,14 @@ namespace Outpost.Sim
                 hp *= 1f + 0.08f * (tech - 1);
                 dmg *= 1f + 0.08f * (tech - 1);
                 hp *= 0.85f + 0.15f * alienArmyMult;
+                if (done.Contains("carapace")) hp *= 1.2f;
+                if (done.Contains("adrenal"))
+                {
+                    dmg *= 1.15f;
+                    spd *= 1.15f;
+                }
             }
-            return (hp, dmg);
+            return (hp, dmg, spd, rng);
         }
 
         /// <summary>Brings a faction's hero (Commander / Queen) in beside its first base.</summary>
@@ -493,6 +696,15 @@ namespace Outpost.Sim
             Economy(dt);
             recountT -= dt;
             if (recountT <= 0) { recountT = 0.5f; Recount(); }
+            supportT -= dt;
+            if (supportT <= 0) { supportT = 0.5f; UpdateSupport(); }
+            for (int i = scans.Count - 1; i >= 0; i--)
+            {
+                scans[i].t -= dt;
+                if (scans[i].t <= 0) scans.RemoveAt(i);
+            }
+            detectT -= dt;
+            if (detectT <= 0) { detectT = 0.25f; UpdateDetection(); }
             for (int i = 0; i < buildings.Count; i++) if (buildings[i].alive) UpdateBuilding(buildings[i], dt);
             for (int i = 0; i < towers.Count; i++) if (towers[i].alive) UpdateTower(towers[i], dt);
             for (int i = 0; i < units.Count; i++) if (units[i].alive) UpdateUnit(units[i], dt);
@@ -554,6 +766,7 @@ namespace Outpost.Sim
         void UpdateBuilding(Building b, float dt)
         {
             b.TickStatus(dt);
+            if (b.scanCd > 0) b.scanCd -= dt;
             if (!b.Done)
             {
                 b.buildLeft -= dt;
@@ -566,6 +779,15 @@ namespace Outpost.Sim
             if (q.t > 0) return;
             b.queue.RemoveAt(0);
             var f = factions[b.faction];
+            if (q.type == "research")
+            {
+                f.researching.Remove(q.id);
+                f.research.Add(q.id);
+                ApplyResearch(b.faction, q.id);
+                if (b.faction == "player")
+                    fx?.Message("player", "Research complete: " + GameData.S(b.Research?[q.id], "name", q.id));
+                return;
+            }
             if (q.type == "upgrade")
             {
                 b.upgraded = true;
@@ -623,7 +845,7 @@ namespace Outpost.Sim
             float bd = float.MaxValue;
             foreach (var e in Near(x, y, radius + 60))
             {
-                if (!e.alive || !Hostile(e.faction, faction) || !canHit(e)) continue;
+                if (!e.alive || !Hostile(e.faction, faction) || !canHit(e) || HiddenFrom(e, faction)) continue;
                 float d = D2(x, y, e.x, e.y);
                 if (d > (radius + e.radius) * (radius + e.radius)) continue;
                 float score = d + (e.IsUnit ? 0 : 160000);     // prefer units over buildings, then closest
@@ -656,6 +878,12 @@ namespace Outpost.Sim
             if (t is Unit tu && tu.Has("burrowed")) return 0;
             float amt = amount * GameData.Counter(cls, t.cls) * (bonus != null ? GameData.F(bonus, t.cls, 1f) : 1f);
             if (!pierce) amt = Mathf.Max(amt * 0.25f, amt - t.armor);
+            if (t.shield > 0)
+            {
+                float soak = Mathf.Min(t.shield, amt);
+                t.shield -= soak;
+                amt -= soak;
+            }
             t.hp -= amt;
             t.lastHitT = 0;
             if (t.hp <= 0) Kill(t, src);
@@ -713,7 +941,11 @@ namespace Outpost.Sim
                     foreach (var s in b.baseRef.sockets) if (s != null && s.alive) Kill(s, src);
                 }
                 else if (b.baseRef.slots[b.slot] == b) b.baseRef.slots[b.slot] = null;
-                foreach (var q in b.queue) factions[b.faction].popUsed -= q.pop;
+                foreach (var q in b.queue)
+                {
+                    factions[b.faction].popUsed -= q.pop;
+                    if (q.type == "research") factions[b.faction].researching.Remove(q.id);
+                }
                 b.queue.Clear();
             }
             if (e is Tower t)
@@ -737,7 +969,7 @@ namespace Outpost.Sim
             if (t.damage <= 0 || t.stunT > 0) return;
             if (t.cooldown > 0) t.cooldown -= dt;
             var tg = t.target;
-            if (tg == null || !tg.alive || D2(t.x, t.y, tg.x, tg.y) > (t.range + tg.radius) * (t.range + tg.radius))
+            if (tg == null || !tg.alive || HiddenFrom(tg, t.faction) || D2(t.x, t.y, tg.x, tg.y) > (t.range + tg.radius) * (t.range + tg.radius))
                 tg = t.target = Acquire(t.faction, t.x, t.y, t.range, t.CanHit);
             if (tg == null) return;
             float want = Mathf.Atan2(tg.y - t.y, tg.x - t.x);
@@ -903,6 +1135,15 @@ namespace Outpost.Sim
             if (u.Has("burrowed") || u.stunT > 0) return;
             if (u.cooldown > 0) u.cooldown -= dt;
             if (u.fireT > 0) u.fireT -= dt;
+            if (u.heal != null || u.shieldAura != null)
+            {
+                u.auraT -= dt;
+                if (u.auraT <= 0)
+                {
+                    u.auraT = 0.5f;
+                    UnitAuras(u);
+                }
+            }
 
             // reinforcement: squads near one of their own base cores refill
             var rf = GameData.Rts["reinforce"];
@@ -946,7 +1187,7 @@ namespace Outpost.Sim
 
             // targeting
             var t = u.target;
-            if (t != null && (!t.alive || !u.CanHit(t)))
+            if (t != null && (!t.alive || !u.CanHit(t) || HiddenFrom(t, u.faction)))
             {
                 t = u.target = null;
                 if (u.order == Order.Attack) { u.order = Order.None; u.guard = u.Pos; }
@@ -1051,6 +1292,7 @@ namespace Outpost.Sim
                         * (1 + GameData.F(GameData.Rts["veterancy"], "damage", 0.15f) * u.rank);
             if (u.Has("rally")) dmg *= 1.3f;
             u.buffs.Remove("camo");
+            if (u.cls == "inf" && t.cls == "inf" && factions[u.faction].research.Contains("hollow_point")) dmg *= 1.2f;
             if (!u.flying && grid.HighGround(u.x, u.y)) dmg *= 1.1f;
             if (u.range <= 50)
             {

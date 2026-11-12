@@ -19,6 +19,9 @@ namespace Outpost.View
         bool selected;
         public float topHeight = 2f;     // world units above the ground, for health bars
 
+        /// <summary>Set by the game: is this entity invisible to the player right now (cloaked, undetected)?</summary>
+        public static System.Func<Entity, bool> IsHidden;
+
         public static Color PlayerColor = new Color(0.35f, 0.95f, 0.55f);
         public static Color EnemyColor = new Color(1f, 0.35f, 0.3f);
 
@@ -119,7 +122,7 @@ namespace Outpost.View
                 for (int i = 0; i < members.Count; i++)
                 {
                     var m = members[i];
-                    bool show = i < alive;
+                    bool show = i < alive && !(IsHidden != null && IsHidden(e));
                     if (m.gameObject.activeSelf != show) m.gameObject.SetActive(show);
                     if (!show) continue;
                     Vector2 off = Vector2.zero;

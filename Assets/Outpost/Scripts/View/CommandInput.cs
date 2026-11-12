@@ -24,6 +24,7 @@ namespace Outpost.View
 
         public readonly List<Entity> selection = new List<Entity>();
         public bool attackMode, abilityMode;
+        public Building scanFrom;                                  // Sensor Array waiting for a Scan target
         public readonly List<Rect> blockers = new List<Rect>();   // HUD rects (GUI coords, top-left origin)
         public bool dragging;
         public Vector2 dragStart, dragNow;                        // GUI coords
@@ -82,7 +83,7 @@ namespace Outpost.View
             float bd = float.MaxValue;
             foreach (var e in battle.All())
             {
-                if (!e.alive || !ScreenOf(e, out var p, out var r)) continue;
+                if (!e.alive || battle.HiddenFrom(e, "player") || !ScreenOf(e, out var p, out var r)) continue;
                 float d = Vector2.Distance(p, screen);
                 if (d > r) continue;
                 float score = d / r + (e.IsUnit ? 0f : 0.6f);    // units win over the building behind them
@@ -107,6 +108,7 @@ namespace Outpost.View
                 }
             attackMode = false;
             abilityMode = false;
+            scanFrom = null;
         }
 
         /// <summary>F: fires the selection's abilities, or starts aiming when they need a spot on the ground.</summary>
@@ -163,7 +165,13 @@ namespace Outpost.View
             // ---- left button
             if (mouse.leftButton.wasPressedThisFrame && !OverHud(gui))
             {
-                if (abilityMode)
+                if (scanFrom != null)
+                {
+                    var sensor = scanFrom;
+                    scanFrom = null;
+                    if (GroundPoint(mp, out var sp2)) Toast(battle.Scan(sensor, sp2) ?? "Scanning");
+                }
+                else if (abilityMode)
                 {
                     if (GroundPoint(mp, out var ap)) AimAbility(ap);
                     bool again = kb != null && kb.shiftKey.isPressed &&
@@ -232,7 +240,8 @@ namespace Outpost.View
             bool ctrl = kb.ctrlKey.isPressed;
             if (kb.escapeKey.wasPressedThisFrame)
             {
-                if (attackMode || abilityMode) attackMode = abilityMode = false;
+                if (scanFrom != null) scanFrom = null;
+                else if (attackMode || abilityMode) attackMode = abilityMode = false;
                 else Select(new Entity[0]);
             }
             if (kb.aKey.wasPressedThisFrame && MyUnits.Any())

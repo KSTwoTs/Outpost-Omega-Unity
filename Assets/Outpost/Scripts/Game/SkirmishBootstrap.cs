@@ -65,6 +65,7 @@ namespace Outpost.Game
             fx.unitsRoot = unitsRoot;
 
             battle = new Battle(map) { fx = fx };
+            EntityView.IsHidden = e => battle != null && battle.HiddenFrom(e, "player");
             Base player = null, alien = null;
             foreach (var s in map.sites)
             {

@@ -170,6 +170,7 @@ namespace Outpost.View
                 case "acid": return new Color(0.55f, 1f, 0.35f);
                 case "burrow": return new Color(0.6f, 0.42f, 0.26f);
                 case "upgrade": return new Color(1f, 0.9f, 0.45f);
+                case "scan": return new Color(0.4f, 1f, 0.6f);
                 default: return new Color(0.45f, 0.9f, 1f);
             }
         }

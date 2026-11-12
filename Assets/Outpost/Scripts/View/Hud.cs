@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using Newtonsoft.Json.Linq;
 using UnityEngine;
 using Outpost.Content;
 using Outpost.Sim;
@@ -82,9 +83,9 @@ namespace Outpost.View
             if (Event.current.type != EventType.Repaint) return;
             foreach (var e in battle.All())
             {
-                if (!e.alive || !(e.view is EntityView v) || v == null) continue;
+                if (!e.alive || !(e.view is EntityView v) || v == null || battle.HiddenFrom(e, "player")) continue;
                 bool sel = v.Selected, hov = input.hover == e;
-                bool show = sel || hov || e.hp < e.maxHp - 0.5f || !e.Done;
+                bool show = sel || hov || e.hp < e.maxHp - 0.5f || !e.Done || e.shield > 0.5f;
                 if (!show) continue;
                 var sp = cam.WorldToScreenPoint(v.HeadPosition);
                 if (sp.z <= 0) continue;
@@ -95,6 +96,8 @@ namespace Outpost.View
                 var c = e.faction == "player" ? Color.Lerp(new Color(1f, 0.3f, 0.2f), new Color(0.35f, 1f, 0.45f), k)
                     : Color.Lerp(new Color(1f, 0.25f, 0.2f), new Color(1f, 0.55f, 0.3f), k);
                 Fill(new Rect(r.x, r.y, r.width * k, r.height), c);
+                if (e.shield > 0.5f)
+                    Fill(new Rect(r.x, r.y - 3, r.width * Mathf.Clamp01(e.shield / Mathf.Max(1f, e.maxHp * 0.3f)), 2), new Color(0.45f, 0.85f, 1f));
                 if (e is Unit u && u.squad > 1)
                     for (int i = 1; i < u.squad; i++) Fill(new Rect(r.x + r.width * i / u.squad, r.y, 1, r.height), new Color(0, 0, 0, 0.8f));
                 if (e is Unit ru && ru.rank > 0)
@@ -143,6 +146,8 @@ namespace Outpost.View
                 (battle.ai != null ? $"     <color=#ff9a7a>Next alien attack {Clock(Mathf.Max(0, battle.ai.nextAttack - battle.time))}</color>" : "") +
                 (heroDown ? $"     <color=#ffd77a>Commander back in {Mathf.CeilToInt(f.heroRespawn)} s</color>" : ""),
                 label);
+            if (input.scanFrom != null)
+                GUI.Label(new Rect(Screen.width / 2f - 200, 40, 400, 24), "<color=#70ffa0><b>SCAN: left click anywhere on the map (Esc cancels)</b></color>", label);
             if (input.abilityMode)
                 GUI.Label(new Rect(Screen.width / 2f - 200, 40, 400, 24), "<color=#ffc060><b>ABILITY: left click where to use it (Esc cancels)</b></color>", label);
             if (input.attackMode)
@@ -154,6 +159,7 @@ namespace Outpost.View
             var sel = input.selection.Where(e => e.alive).ToList();
             if (sel.Count == 0) return;
             float w = 660, h = 170;
+            if (sel.Count == 1 && sel[0] is Building rb && rb.Done && rb.faction == "player" && rb.Research != null) h = 226;
             var r = new Rect(Mathf.Max(8, Screen.width / 2f - w / 2 - 110), Screen.height - h, w, h);
             Panel(r);
             GUILayout.BeginArea(new Rect(r.x + 10, r.y + 8, r.width - 20, r.height - 14));
@@ -201,7 +207,15 @@ namespace Outpost.View
             }
             if (b.faction != "player") return;
             if (b.IsHq) HqPanel(b);
-            else if (b.trains.Length > 0) Production(b);
+            else if (b.trains.Length > 0 || b.Research != null) Production(b);
+            if (b.data?["scan"] != null)
+            {
+                GUI.enabled = b.scanCd <= 0;
+                string tip = b.scanCd > 0 ? $"ready in {Mathf.CeilToInt(b.scanCd)} s" : "reveals cloaked aliens";
+                if (GUILayout.Button($"Scan\n<color=#ffd77a>{tip}</color>", btn, GUILayout.Width(150), GUILayout.Height(40))) input.scanFrom = b;
+                GUI.enabled = true;
+            }
+            if (b.data?["shield"] != null) GUILayout.Label("Shielding every building and turret in this base.", small);
             else if (b.Income > 0)
             {
                 GUILayout.Label($"Income +{b.Income:0.0}/s", small);
@@ -270,13 +284,35 @@ namespace Outpost.View
                 GUI.enabled = true;
             }
             GUILayout.EndHorizontal();
-            GUILayout.Label(b.queue.Count == 0 ? "Queue empty   (right-click the ground to set a rally point)" : "Queue (click to cancel):", small);
+            var research = b.Research;
+            if (research != null)
+            {
+                var P = battle.Player;
+                GUILayout.BeginHorizontal();
+                foreach (var kv in research)
+                {
+                    var rd = kv.Value;
+                    bool have = P.research.Contains(kv.Key), busy = P.researching.Contains(kv.Key);
+                    int tech = GameData.I(rd, "tech", 1);
+                    string after = GameData.S(rd, "after");
+                    bool chained = after != null && !P.research.Contains(after);
+                    GUI.enabled = !have && !busy && P.tech >= tech && !chained;
+                    string tip = have ? "done" : busy ? "researching" : tech > P.tech ? $"Tech {tech}"
+                        : chained ? "needs " + GameData.S(research[after], "name", after) : $"{GameData.I(rd, "cost")}";
+                    if (GUILayout.Button($"<color=#9fe6ff>{GameData.S(rd, "name", kv.Key)}</color>\n<color=#ffd77a>{tip}</color>", btn, GUILayout.Width(150), GUILayout.Height(40)))
+                        Report(battle.QueueResearch(b, kv.Key));
+                    GUI.enabled = true;
+                }
+                GUILayout.EndHorizontal();
+            }
+            GUILayout.Label(b.queue.Count == 0 ? (b.trains.Length > 0 ? "Queue empty   (right-click the ground to set a rally point)" : "Queue empty") : "Queue (click to cancel):", small);
             GUILayout.BeginHorizontal();
             for (int i = 0; i < b.queue.Count; i++)
             {
                 var q = b.queue[i];
                 string pct = i == 0 ? $" {(int)(100 * (1 - q.t / q.total))}%" : "";
-                if (GUILayout.Button(GameData.S(GameData.Unit(q.id), "name", q.id) + pct, btn, GUILayout.Width(110), GUILayout.Height(26)))
+                string qn = q.type == "research" ? GameData.S(research?[q.id], "name", q.id) : GameData.S(GameData.Unit(q.id), "name", q.id);
+                if (GUILayout.Button(qn + pct, btn, GUILayout.Width(110), GUILayout.Height(26)))
                 {
                     battle.CancelQueue(b, i);
                     break;
@@ -318,7 +354,7 @@ namespace Outpost.View
             float sx = w / map.px_w, sy = h / map.px_h;
             foreach (var e in battle.All())
             {
-                if (!e.alive) continue;
+                if (!e.alive || battle.HiddenFrom(e, "player")) continue;
                 float s = e.IsUnit ? 3 : e is Building b && b.IsHq ? 7 : 5;
                 var c = e.faction == "player" ? new Color(0.35f, 1f, 0.5f) : new Color(1f, 0.35f, 0.3f);
                 Fill(new Rect(r.x + e.x * sx - s / 2, r.y + e.y * sy - s / 2, s, s), c);
@@ -373,7 +409,7 @@ namespace Outpost.View
                 GUI.Label(new Rect(Screen.width - 108, 6, 100, 20), "<color=#889>F1: controls</color>", small);
                 return;
             }
-            var r = new Rect(Screen.width - 408, 8, 400, 228);
+            var r = new Rect(Screen.width - 408, 8, 400, 244);
             Panel(r);
             GUI.Label(new Rect(r.x + 8, r.y + 6, r.width - 16, r.height - 12),
                 "<b>Controls</b>  (F1 hides)\n" +
@@ -381,6 +417,7 @@ namespace Outpost.View
                 "Right click: move / attack   (building selected: rally point)\n" +
                 "A + left click: attack-move   S: stop   H: hold\n" +
                 "F: unit ability (aimed ones: then left click the spot)\n" +
+                "Research: select the Barracks, Depot, Air Pad or Armory\n" +
                 "Q: whole army   E: army on screen   G: Commander\n" +
                 "Ctrl+1-5: set group   1-5: recall (twice: jump)\n" +
                 "Camera: arrows / screen edge / middle drag, wheel zoom,\n" +

@@ -17,6 +17,7 @@ namespace Outpost.Sim
         public bool alive = true, flying;
         public float lastHitT = 99f;
         public float slow, slowT, stunT;        // slow is 0..1; stunned entities do nothing
+        public float shield;                    // soaks damage before hit points (Shield Drones, Shield Generator)
         public JObject data;
         public object view;                     // the EntityView showing this (set by the view layer)
 
@@ -78,6 +79,11 @@ namespace Outpost.Sim
         public readonly Dictionary<string, float> buffs = new Dictionary<string, float>();   // name -> seconds left
         public Dash dash;
         public Vector2? burrowTo;
+
+        // support and stealth
+        public bool stealth;                    // permanently cloaked (Cloakers)
+        public float detect, auraT;             // radius in which this unit reveals cloaked enemies
+        public JObject heal, shieldAura;
 
         public bool Has(string buff) => buffs.ContainsKey(buff);
 
@@ -149,6 +155,11 @@ namespace Outpost.Sim
             lifesteal = GameData.F(data, "lifesteal");
             burn = GameData.F(data, "burn") > 0;
             lifetime = GameData.F(data, "lifetime", -1f);
+            stealth = GameData.B(data, "stealth");
+            detect = GameData.F(data, "detect");
+            heal = data?["heal"] as JObject;
+            shieldAura = data?["shield_aura"] as JObject;
+            auraT = Random.Range(0f, 0.5f);
             armor = GameData.F(data, "armor");
             speed = GameData.F(data, "speed", 60);
             range = GameData.F(data, "range", 100);
@@ -176,7 +187,7 @@ namespace Outpost.Sim
 
     public class QueueItem
     {
-        public string type = "unit";     // "unit" or "upgrade"
+        public string type = "unit";     // "unit", "upgrade" or "research"
         public string id;
         public float t, total;
         public int cost, pop;
@@ -192,6 +203,8 @@ namespace Outpost.Sim
         public Vector2? rally;
         public string[] trains;
         public bool upgraded;            // Fortress / Elder Hive, Heavy Supply Pad / Deep Pool
+        public float scanCd;             // Sensor Array: seconds until it can Scan again
+        public JObject Research => data?["research"] as JObject;
         public bool IsHq => slot < 0;
         public override bool Done => buildLeft <= 0;
         public JToken Upgrade => data?["upgrade"];
@@ -307,6 +320,7 @@ namespace Outpost.Sim
         public Unit hero;                // Commander / Queen while alive
         public float heroRespawn;        // seconds until the hero comes back (0 = not waiting)
         public readonly HashSet<string> research = new HashSet<string>();
+        public readonly HashSet<string> researching = new HashSet<string>();
         public string ResName => name == "player" ? "Supplies" : "Biomass";
     }
 
@@ -321,6 +335,13 @@ namespace Outpost.Sim
         public bool hitsAir, lob, pierce;
         public JObject bonus;
         public object view;
+    }
+
+    /// <summary>A spot the player's Sensor Array is scanning: reveals cloaked units there for a while.</summary>
+    public class ScanArea
+    {
+        public Vector2 pos;
+        public float r, t;
     }
 
     /// <summary>A delayed area hit (Missile Salvo, Barrage).</summary>

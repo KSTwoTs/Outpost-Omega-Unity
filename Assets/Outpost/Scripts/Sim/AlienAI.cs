@@ -24,7 +24,6 @@ namespace Outpost.Sim
             { "air", new[] { "spitters", "spitters", "carrier", "cloakers" } },
             { "hero", new[] { "brutes", "spitters", "cloakers" } },
         };
-        // healers / shield drones do nothing until support auras are ported, so they are not trained yet
         static readonly string[] Support = { "menders", "shield_drone" };
 
         readonly Battle battle;
@@ -44,8 +43,7 @@ namespace Outpost.Sim
         {
             battle = b;
             var ai = GameData.Rts["ai"];
-            // the Evolution Chamber only holds research, which is not ported yet: skip it for now
-            buildOrder = GameData.List(ai, "build_order").Where(k => k != "evo").ToArray();
+            buildOrder = GameData.List(ai, "build_order");
             var d = ai["difficulties"]?[difficulty];
             battle.Alien.incomeMult = GameData.F(d, "income", 1f);
             armyMult = GameData.F(d, "army_mult", 1f);
@@ -89,6 +87,7 @@ namespace Outpost.Sim
                                                 (u.Pos - new Vector2(home.x, home.y)).sqrMagnitude < 450 * 450);
             Economy(home, f, army, threat);
             Produce(f, army, threat);
+            Research(f);
             Defend(home, army);
             ManageArmy(home, f, army);
             if (f.tech >= 3 && !queenCalled && f.hero == null)
@@ -198,14 +197,19 @@ namespace Outpost.Sim
             var optionsOf = new Dictionary<int, List<string>>();
             foreach (var b in idle)
             {
-                var options = b.trains.Where(k => GameData.Unit(k) != null && f.tech >= GameData.I(GameData.Unit(k), "tech", 1) &&
-                                                  System.Array.IndexOf(Support, k) < 0).ToList();
+                var options = b.trains.Where(k => GameData.Unit(k) != null && f.tech >= GameData.I(GameData.Unit(k), "tech", 1)).ToList();
                 optionsOf[b.id] = options;
                 if (options.Count == 0 || wanted.ContainsKey(b.id)) continue;
-                var picks = mix[top] / (float)total > 0.4f ? CounterPicks[top].Where(options.Contains).ToList() : new List<string>();
-                wanted[b.id] = picks.Count > 0 && Random.value < 0.7f
-                    ? picks[Random.Range(0, picks.Count)]
-                    : options[Random.Range(0, options.Count)];
+                var support = options.Where(k => System.Array.IndexOf(Support, k) >= 0).ToList();
+                var fighters = options.Where(k => System.Array.IndexOf(Support, k) < 0).ToList();
+                if (fighters.Count == 0) fighters = options;
+                var picks = mix[top] / (float)total > 0.4f ? CounterPicks[top].Where(fighters.Contains).ToList() : new List<string>();
+                // healers and shield drones join once there is an army worth supporting
+                wanted[b.id] = support.Count > 0 && army.Count > 8 && Random.value < 0.25f
+                    ? support[Random.Range(0, support.Count)]
+                    : picks.Count > 0 && Random.value < 0.7f
+                        ? picks[Random.Range(0, picks.Count)]
+                        : fighters[Random.Range(0, fighters.Count)];
                 waitSince[b.id] = battle.time + Random.value * 0.5f;
             }
 
@@ -229,6 +233,21 @@ namespace Outpost.Sim
                 if (battle.QueueUnit(b, kind) == null) spare -= cost;
                 wanted.Remove(b.id);      // on failure (pop cap) it simply picks again next time
                 waitSince.Remove(b.id);
+            }
+        }
+
+        /// <summary>Evolutions: once there is Biomass to spare, an idle Evolution Chamber starts the next one.</summary>
+        void Research(Faction f)
+        {
+            if (f.res < 250 + reserve) return;
+            foreach (var b in battle.buildings)
+            {
+                if (!b.alive || b.faction != "alien" || !b.Done || b.queue.Count > 0) continue;
+                var all = b.Research;
+                if (all == null) continue;
+                foreach (var kv in all)
+                    if (!f.research.Contains(kv.Key) && !f.researching.Contains(kv.Key) && battle.QueueResearch(b, kv.Key) == null)
+                        return;
             }
         }
 
