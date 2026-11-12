@@ -5,6 +5,7 @@ using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 using Outpost.Content;
 using Outpost.Sim;
+using Outpost.UI;
 using Outpost.View;
 
 namespace Outpost.Game
@@ -26,7 +27,8 @@ namespace Outpost.Game
         RtsCamera rig;
         Camera cam;
         CommandInput input;
-        Hud hud;
+        HudRoot hud;
+        Markers markers;
         Fx fx;
 
         public Battle Battle => battle;
@@ -37,7 +39,8 @@ namespace Outpost.Game
             SetupLighting();
             SetupCamera();
             input = gameObject.AddComponent<CommandInput>();
-            hud = gameObject.AddComponent<Hud>();
+            hud = gameObject.AddComponent<HudRoot>();
+            markers = gameObject.AddComponent<Markers>();
             var maps = MapBuilder.Available();
             if (maps.Length == 0)
             {
@@ -95,15 +98,10 @@ namespace Outpost.Game
             input.rig = rig;
             input.map = map;
             input.Select(new Entity[0]);
-            hud.battle = battle;
-            hud.input = input;
-            hud.fx = fx;
-            hud.cam = cam;
-            hud.rig = rig;
-            hud.map = map;
-            hud.minimapTex = MapBuilder.LastAlbedo;
-            hud.restart = Begin;
-            hud.paused = false;
+            hud.Bind(battle, input, fx, rig, map, MapBuilder.LastAlbedo, Begin);
+            markers.battle = battle;
+            markers.input = input;
+            markers.cam = cam;
             if (player != null)
             {
                 var toward = new Vector2(map.px_w / 2f - player.x, map.px_h / 2f - player.y).normalized;

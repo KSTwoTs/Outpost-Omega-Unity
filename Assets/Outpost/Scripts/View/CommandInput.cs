@@ -25,7 +25,9 @@ namespace Outpost.View
         public readonly List<Entity> selection = new List<Entity>();
         public bool attackMode, abilityMode;
         public Building scanFrom;                                  // Sensor Array waiting for a Scan target
-        public readonly List<Rect> blockers = new List<Rect>();   // HUD rects (GUI coords, top-left origin)
+        public readonly List<Rect> blockers = new List<Rect>();   // extra blocked rects (GUI coords, top-left origin)
+        public System.Func<Vector2, bool> overUi;                  // set by the HUD: is this screen point on a panel?
+        public string abilityOnly;                                 // aim mode limited to one ability id (HUD buttons)
         public bool dragging;
         public Vector2 dragStart, dragNow;                        // GUI coords
         public Entity hover;
@@ -49,6 +51,7 @@ namespace Outpost.View
 
         bool OverHud(Vector2 gui)
         {
+            if (overUi != null && overUi(new Vector2(gui.x, Screen.height - gui.y))) return true;
             foreach (var r in blockers) if (r.Contains(gui)) return true;
             return false;
         }
@@ -112,9 +115,9 @@ namespace Outpost.View
         }
 
         /// <summary>F: fires the selection's abilities, or starts aiming when they need a spot on the ground.</summary>
-        public void TriggerAbility()
+        public void TriggerAbility(string only = null)
         {
-            var withAbility = MyUnits.Where(u => u.ability != null).ToList();
+            var withAbility = MyUnits.Where(u => u.ability != null && (only == null || GameData.S(u.ability, "id", "") == only)).ToList();
             if (withAbility.Count == 0) return;
             var ready = withAbility.Where(battle.AbilityReady).ToList();
             if (ready.Count == 0)
@@ -126,6 +129,7 @@ namespace Outpost.View
             if (Battle.AbilityAimed(ready[0]))
             {
                 abilityMode = true;
+                abilityOnly = only;
                 attackMode = false;
                 return;
             }
@@ -141,6 +145,7 @@ namespace Outpost.View
             foreach (var u in MyUnits.ToList())
             {
                 if (!Battle.AbilityAimed(u) || !battle.AbilityReady(u)) continue;
+                if (abilityOnly != null && GameData.S(u.ability, "id", "") != abilityOnly) continue;
                 used = battle.UseAbility(u, px) || used;
                 // one squad per click for aimed attacks, so a group doesn't waste them all on one spot
                 if (used && System.Array.IndexOf(OnePerClick, GameData.S(u.ability, "id", "")) >= 0) break;

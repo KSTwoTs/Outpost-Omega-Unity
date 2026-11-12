@@ -19,7 +19,7 @@ Rules that follow from it:
 - **The Sim never knows it is being watched.** It talks to the outside only through `IBattleFx` (things happened: a shot, a death, a message). Views and the HUD read Sim objects but change them only by calling `Battle` methods (`OrderMove`, `QueueUnit`, `UseAbility`...).
 - **A mode is a configuration plus an optional director, not a new battle.** Skirmish, a campaign operation, a Siege Run node and Last Stand all create the same `Battle` from a `BattleConfig`; the campaign adds a `Mission`, Siege Run adds strains and a `BossDirector`.
 - **Numbers live in data files, not code.** Balance stays in `StreamingAssets/Outpost/data/*.json`, shared with the Python game until the balance pass in Milestone 5.
-- **Each layer becomes its own assembly** (`.asmdef`) at M1.1, so the compiler enforces the table above and Sim changes do not recompile the UI.
+- **Each layer becomes its own assembly** (`.asmdef`) at M1.3, together with the Sim file split, so the compiler enforces the table above and Sim changes do not recompile the UI.
 
 ## Folder tree
 
@@ -37,7 +37,9 @@ Outpost-Omega-Unity/
    │  │                                  rts_run.json, story.json ... (copied from the Python game)
    │  ├─ maps/<map id>/            now · 4 maps · M2: all 8 maps x 3 sizes + 4 hand-made
    │  │                                  M3: campaign and Siege Run maps
-   │  ├─ models.pak.json / .bin    now · every unit, building and turret model
+   │  ├─ models.pak.json / .bin    now · every unit, building and turret as one solid mesh
+│  ├─ models_anim.pak.json/.bin now · units and turrets again, with walk and attack poses and
+│  │                                  separate turrets, rotors and turret heads (these win over models.pak)
    │  └─ audio.json                M4 · which sound plays for which event
    └─ Outpost/
       ├─ Scenes/
@@ -54,9 +56,9 @@ Outpost-Omega-Unity/
       │  ├─ Game/                  (layer 5)
       │  └─ Sandbox/               now · SandboxBootstrap.cs
       ├─ Editor/                   editor-only tools, never in a build
-      ├─ Art/                      materials, shaders, effects, portraits, icons, fonts
-      ├─ Audio/                    sound effects, music, voice
-      └─ UI/                       layout and style files for the interface
+      ├─ Resources/UI/             now · the interface's style sheet and theme
+      ├─ Art/                      materials, shaders, effects, icons
+      └─ Audio/                    sound effects, music, voice
 ```
 
 ## Scripts in detail
@@ -66,9 +68,9 @@ Outpost-Omega-Unity/
 ```
 Content/
 ├─ MapBuilder.cs        now · loads a map folder, builds the terrain mesh, Ground(x, y)
-├─ MapData.cs           M1.1 · the map data classes, split out of MapBuilder.cs
+├─ MapData.cs           M1.3 · the map data classes, split out of MapBuilder.cs
 ├─ ModelLibrary.cs      now · loads the model pak, spawns a model by name
-├─ PortraitLibrary.cs   M1.1 · unit and building portraits for the HUD (rendered once from the models)
+├─ PortraitLibrary.cs   now · unit and building portraits for the HUD (photographed once from the models)
 ├─ MapGenerator.cs      M4 · the Python map generator rebuilt in C# (needed by the Map Builder)
 └─ TerrainPainter.cs    M4 · bakes the painted ground for generated and user-made maps
 ```
@@ -133,10 +135,11 @@ Sim/
 
 ```
 View/
-├─ BattleView.cs         M1.1 · owns the picture of one battle (replaces the view half of SkirmishBootstrap)
-├─ EntityView.cs         now · one unit, building or tower on screen
-├─ UnitAnimator.cs       M1.2 · code-driven animation: legs, treads, turrets, rotors, attack, death
-├─ AnimationRigs.cs      M1.2 · which parts of each model move, and how
+├─ BattleView.cs         M2 · owns the picture of one battle (replaces the view half of SkirmishBootstrap)
+├─ EntityView.cs         now · one unit, building or tower on screen: stepping, attack pose, lean, banking,
+│                              turret tracking, falling over on death
+├─ UnitAnimator.cs       now · ModelRig: swaps a model between its exported poses, aims turret parts, spins rotors
+│                              (which parts move comes from the model pack's index, so there is no rig file)
 ├─ BaseApron.cs          now · the connected base platform
 ├─ RtsCamera.cs          now
 ├─ Effects/
@@ -147,7 +150,7 @@ View/
 ├─ World/
 │  ├─ Lighting.cs        M1.8 · sun, shadows, glowing structures, color grade per biome
 │  ├─ FogView.cs         M1.7 · draws the fog of war
-│  ├─ Markers.cs         M1.1 · selection rings, rally and order markers, health bars in the world
+│  ├─ Markers.cs         now · health, shield and progress bars over units, rank stars, the drag box
 │  ├─ Creep.cs           M4 · creep spreading around alien bases
 │  ├─ Decals.cs          M4 · craters, scorch marks, tracks
 │  └─ Weather.cs         M4
@@ -156,24 +159,24 @@ View/
    └─ Music.cs           M4
 
 Input/
-├─ CommandInput.cs       now in View/ · selection, orders, aim modes · moves here at M1.1
-├─ Hotkeys.cs            M1.1 · every key in one table · M2: rebinding
+├─ CommandInput.cs       now in View/ · selection, orders, aim modes · moves here at M2 with Hotkeys
+├─ Hotkeys.cs            M2 · every key in one table, rebinding
 └─ SecondPlayer.cs       M4 · the co-op Commander (keys or controller)
 ```
 
 ### UI (layer 4)
 
-Built with Unity's UI Toolkit: a layout file (`.uxml`) and a style file (`.uss`) per screen in `Assets/Outpost/UI/`, and one small C# class per screen here. The placeholder `View/Hud.cs` is deleted when `Hud/` replaces it at M1.1.
+Built with Unity's UI Toolkit. Each panel is laid out in C#, one small class per panel, and every color and size lives in one style file, `Assets/Outpost/Resources/UI/Outpost.uss`. The placeholder `View/Hud.cs` was removed when `Hud/` replaced it on Nov 12.
 
 ```
 UI/
-├─ Hud/                       M1.1
-│  ├─ HudRoot.cs              builds the HUD and tells each panel which battle to show
-│  ├─ ResourceBar.cs          supplies, income, pop, tech, clock, next attack
-│  ├─ SelectionPanel.cs       portraits, health, squad, stats, buffs
-│  ├─ CommandCard.cs          the button grid: orders, abilities, build, train, research, upgrades
-│  ├─ Minimap.cs              M1.7 adds fog and alert pings
-│  ├─ Alerts.cs               messages and "last alert" jump
+├─ Hud/                       now
+│  ├─ HudRoot.cs              now · builds the HUD, tells each panel which battle to show, help, pause and end screens
+│  ├─ ResourceBar.cs          now · supplies, income, pop, tech, clock, next attack, Commander respawn
+│  ├─ SelectionPanel.cs       now · portrait, health, shield, stats, buffs, the build queue; a tile per type for groups
+│  ├─ CommandCard.cs          now · the 5 x 3 button grid: orders, abilities, build, turrets, train, research, upgrades, Scan
+│  ├─ MinimapPanel.cs         now · M1.7 adds fog and alert pings
+│  ├─ AlertsPanel.cs          now · messages, aim-mode banner, toast · M2 adds the "last alert" jump
 │  ├─ PowerBar.cs             M1.6 · Z X C V leader powers
 │  ├─ ObjectivesPanel.cs      M3 · campaign objectives
 │  └─ BossBar.cs              M3 · Siege Run boss health and phases
@@ -196,9 +199,9 @@ UI/
 ├─ Modes/                     M4
 │  ├─ CommandModesScreen.cs
 │  └─ MapBuilderScreen.cs
-└─ Shared/                    M1.1
-   ├─ Tooltip.cs, IconButton.cs, ProgressBar.cs
-   └─ Format.cs               one place for how numbers, times and costs are written
+└─ Shared/
+   └─ Ui.cs                   now · element helpers (boxes, text, buttons, bars, portraits) and how
+                                    numbers and times are written
 ```
 
 ### Game (layer 5)
@@ -235,19 +238,20 @@ Assets/Outpost/
 │  ├─ Materials/     M1.2 · shared materials for the models (today they are made in code)
 │  ├─ Shaders/       M1.8 · team color and glow · M4 creep and decals
 │  ├─ Effects/       M1.5 · particle systems and textures
-│  ├─ Portraits/     M1.1 · generated unit and building portraits
-│  └─ Icons/         M1.1 · ability, order, research and resource icons
+│  └─ Icons/         M2 · ability, order, research and resource icons (portraits are made at run time)
 ├─ Audio/            M4
 │  ├─ Sfx/, Music/, Voice/
-└─ UI/
-   ├─ Layouts/       M1.1 · .uxml, one per screen or panel
-   ├─ Styles/        M1.1 · .uss · Theme.uss holds every color, size and font in one place
-   └─ Fonts/         M1.1
+└─ Resources/UI/     loaded by name at run time
+   ├─ Outpost.uss        now · every color, size and font of the interface
+   ├─ OutpostTheme.tss   now · Unity's default runtime theme, required by UI Toolkit
+   └─ Fonts/             M2
 ```
 
 ## Where the content comes from
 
-Models, maps and data are still produced by the Python project (`tools/export_unity.py` in `Outpost-Omega-Updated`) and written into `StreamingAssets/Outpost/`. That stays true until M4, when the map generator is rebuilt in Unity; the sculpting tools for models stay in Python for good.
+Models, maps and data are produced from the Python project and written into `StreamingAssets/Outpost/`. That stays true until M4, when the map generator is rebuilt in Unity; the sculpting tools for models stay in Python for good.
+
+**The export script.** `tools/export_unity.py` in the Python project was rewritten on Nov 12 (the original was never saved there). `models` turns the sculpts into meshes: every unit in up to three poses (standing, mid-step, attacking), with vehicle turrets, rotors and the heads of base turrets exported as separate parts around their own pivots. `data` copies the data files. `maps` is not rewritten yet; it comes back at M2, when all maps and sizes are exported. Buildings can be re-exported with `models buildings` but still come from the original pack.
 
 ## How one battle fits together
 
@@ -261,6 +265,6 @@ The headless test tool does steps 1 to 3 with no view at all, which is why the S
 
 ## Still open
 
-- **UI Toolkit versus the older Unity UI.** This document assumes UI Toolkit. If the first HUD panels fight it, the folders stay the same and only the layout files change format.
+- **UI Toolkit versus the older Unity UI.** Settled Nov 12: the HUD is built on UI Toolkit and works. Still to confirm by hand: real mouse clicks on the HUD (the automated test could only send simulated ones).
 - **Classic Defense.** Not laid out here. If it is ported it gets its own `Sim/Classic/`, `View/Classic/` and `UI/Classic/` beside the RTS, sharing Content, Game, Shared UI and the Art and Audio folders.
-- **Animation.** If code-driven animation is not enough (decided at M1.2), `Art/` gains `Models/` and `Animations/` for rigged characters and `UnitAnimator.cs` drives those instead.
+- **Animation.** Units now animate by swapping exported poses plus movement in code. If that is not enough once you have watched it, `Art/` gains `Models/` and `Animations/` for rigged characters and `UnitAnimator.cs` drives those instead.
