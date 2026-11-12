@@ -1,0 +1,1885 @@
+{
+  "_comment": "Command mode (Halo Wars-style RTS). Read by game/rts/. Costs are Supplies (player) or Biomass (aliens). Times are seconds. 'class' is inf / veh / air / hero / bld and drives the counter triangle below.",
+  "counters": {
+    "_comment": "Damage multiplier: attacker class -> target class. Infantry beats air, air beats vehicles, vehicles beat infantry.",
+    "inf": {
+      "inf": 1.0,
+      "veh": 0.6,
+      "air": 1.5,
+      "hero": 1.0,
+      "bld": 0.7
+    },
+    "veh": {
+      "inf": 1.5,
+      "veh": 1.0,
+      "air": 0.6,
+      "hero": 1.0,
+      "bld": 1.0
+    },
+    "air": {
+      "inf": 0.6,
+      "veh": 1.5,
+      "air": 1.0,
+      "hero": 1.0,
+      "bld": 1.0
+    },
+    "hero": {
+      "inf": 1.2,
+      "veh": 1.0,
+      "air": 1.0,
+      "hero": 1.0,
+      "bld": 0.8
+    },
+    "bld": {
+      "inf": 1.0,
+      "veh": 1.0,
+      "air": 1.0,
+      "hero": 1.0,
+      "bld": 1.0
+    }
+  },
+  "start": {
+    "supplies": 500,
+    "biomass": 500,
+    "pop_base": 25,
+    "pop_per_base": 10,
+    "pop_max": 60,
+    "hq_income": 1.5,
+    "player_units": [
+      "marines"
+    ],
+    "alien_units": [
+      "skitters",
+      "skitters"
+    ]
+  },
+  "units": {
+    "marines": {
+      "name": "Marines",
+      "faction": "player",
+      "class": "inf",
+      "squad": 4,
+      "hp": 45,
+      "armor": 0,
+      "speed": 72,
+      "range": 150,
+      "damage": 5,
+      "rate": 2.0,
+      "air": true,
+      "cost": 100,
+      "pop": 1,
+      "time": 10,
+      "tech": 1,
+      "sight": 230,
+      "sprite": "trooper",
+      "palette": "classic",
+      "ability": {
+        "id": "frag",
+        "name": "Frag Grenade",
+        "cooldown": 14,
+        "range": 200,
+        "radius": 60,
+        "damage": 60,
+        "needs": "frag_grenades"
+      },
+      "desc": "Cheap all-rounder. Strong vs air."
+    },
+    "flamers": {
+      "name": "Flamers",
+      "faction": "player",
+      "class": "inf",
+      "squad": 3,
+      "hp": 55,
+      "armor": 1,
+      "speed": 70,
+      "range": 95,
+      "damage": 4,
+      "rate": 6.0,
+      "air": false,
+      "cost": 150,
+      "pop": 1,
+      "time": 12,
+      "tech": 2,
+      "sight": 200,
+      "sprite": "trooper",
+      "palette": "ignis",
+      "bonus": {
+        "inf": 1.6,
+        "bld": 1.4
+      },
+      "burn": 6,
+      "ability": {
+        "id": "napalm",
+        "name": "Napalm Line",
+        "cooldown": 20,
+        "range": 160,
+        "radius": 70,
+        "damage": 15,
+        "duration": 5
+      },
+      "desc": "Melts infantry and alien buildings. Can't hit air."
+    },
+    "rockets": {
+      "name": "Rocket Troopers",
+      "faction": "player",
+      "class": "inf",
+      "squad": 3,
+      "hp": 42,
+      "armor": 0,
+      "speed": 66,
+      "range": 210,
+      "damage": 20,
+      "rate": 0.7,
+      "air": true,
+      "cost": 180,
+      "pop": 1,
+      "time": 14,
+      "tech": 2,
+      "sight": 240,
+      "sprite": "trooper",
+      "palette": "hawk",
+      "bonus": {
+        "veh": 1.8
+      },
+      "projectile": "rocket",
+      "ability": {
+        "id": "stim",
+        "name": "Stim Pack",
+        "cooldown": 25,
+        "duration": 6
+      },
+      "desc": "Anti-vehicle infantry that can also shoot down flyers."
+    },
+    "buggy": {
+      "name": "Scout Buggy",
+      "faction": "player",
+      "class": "veh",
+      "squad": 1,
+      "hp": 240,
+      "armor": 1,
+      "speed": 150,
+      "range": 160,
+      "damage": 7,
+      "rate": 4.0,
+      "air": true,
+      "cost": 150,
+      "pop": 2,
+      "time": 12,
+      "tech": 1,
+      "sight": 300,
+      "sprite": "buggy",
+      "ability": {
+        "id": "ram",
+        "name": "Ram",
+        "cooldown": 10,
+        "range": 200,
+        "radius": 40,
+        "damage": 70
+      },
+      "desc": "Fast scout. Runs over infantry."
+    },
+    "tank": {
+      "name": "Siege Tank",
+      "faction": "player",
+      "class": "veh",
+      "squad": 1,
+      "hp": 560,
+      "armor": 3,
+      "speed": 62,
+      "range": 230,
+      "damage": 42,
+      "rate": 0.5,
+      "splash": 40,
+      "air": false,
+      "cost": 350,
+      "pop": 3,
+      "time": 22,
+      "tech": 2,
+      "sight": 260,
+      "sprite": "tank",
+      "projectile": "shell",
+      "ability": {
+        "id": "canister",
+        "name": "Canister Shell",
+        "cooldown": 20,
+        "range": 260,
+        "radius": 90,
+        "damage": 90,
+        "needs": "canister"
+      },
+      "desc": "Heavy armor and splash. Can't hit air."
+    },
+    "aa": {
+      "name": "Missile Truck",
+      "faction": "player",
+      "class": "veh",
+      "squad": 1,
+      "hp": 320,
+      "armor": 2,
+      "speed": 80,
+      "range": 240,
+      "damage": 16,
+      "rate": 1.5,
+      "splash": 30,
+      "air": true,
+      "cost": 225,
+      "pop": 2,
+      "time": 16,
+      "tech": 2,
+      "sight": 280,
+      "sprite": "aa",
+      "bonus": {
+        "air": 2.6,
+        "inf": 0.5,
+        "veh": 0.5
+      },
+      "projectile": "rocket",
+      "ability": {
+        "id": "lockdown",
+        "name": "Lockdown",
+        "cooldown": 18,
+        "duration": 8
+      },
+      "desc": "Anti-air missile launcher. Shreds flyers, weak against ground. Lockdown: deploy for extra range and fire rate."
+    },
+    "hornet": {
+      "name": "Hornet",
+      "faction": "player",
+      "class": "air",
+      "squad": 1,
+      "hp": 210,
+      "armor": 0,
+      "speed": 140,
+      "range": 160,
+      "damage": 9,
+      "rate": 3.0,
+      "air": true,
+      "cost": 225,
+      "pop": 2,
+      "time": 16,
+      "tech": 2,
+      "sight": 300,
+      "sprite": "hornet",
+      "ability": {
+        "id": "salvo",
+        "name": "Missile Salvo",
+        "cooldown": 16,
+        "range": 220,
+        "radius": 50,
+        "damage": 80
+      },
+      "desc": "Fast flyer. Strong vs vehicles."
+    },
+    "gunship": {
+      "name": "Vulture Gunship",
+      "faction": "player",
+      "class": "air",
+      "squad": 1,
+      "hp": 800,
+      "armor": 2,
+      "speed": 78,
+      "range": 230,
+      "damage": 30,
+      "rate": 1.2,
+      "splash": 30,
+      "air": true,
+      "cost": 600,
+      "pop": 5,
+      "time": 32,
+      "tech": 3,
+      "sight": 300,
+      "sprite": "gunship",
+      "projectile": "rocket",
+      "ability": {
+        "id": "barrage",
+        "name": "Barrage",
+        "cooldown": 30,
+        "range": 260,
+        "radius": 110,
+        "damage": 160
+      },
+      "desc": "Flying fortress. Tech 3."
+    },
+    "commander": {
+      "name": "Commander",
+      "faction": "player",
+      "class": "hero",
+      "squad": 1,
+      "hp": 700,
+      "armor": 2,
+      "speed": 105,
+      "range": 175,
+      "damage": 16,
+      "rate": 3.0,
+      "air": true,
+      "cost": 0,
+      "pop": 0,
+      "time": 0,
+      "tech": 1,
+      "sight": 300,
+      "sprite": "commander",
+      "respawn": 30,
+      "ability": {
+        "id": "rally",
+        "name": "Rally Cry",
+        "cooldown": 30,
+        "radius": 200,
+        "duration": 8,
+        "bonus": 0.3
+      },
+      "desc": "Your hero. Respawns at your HQ."
+    },
+    "mech": {
+      "name": "Valkyrie Mech",
+      "faction": "player",
+      "class": "hero",
+      "squad": 1,
+      "hp": 1800,
+      "armor": 5,
+      "speed": 60,
+      "range": 200,
+      "damage": 55,
+      "rate": 1.5,
+      "splash": 50,
+      "air": true,
+      "cost": 0,
+      "pop": 0,
+      "time": 0,
+      "tech": 1,
+      "sight": 280,
+      "sprite": "mech",
+      "lifetime": 45,
+      "projectile": "shell",
+      "desc": "Leader power. A compact jump-jet mech with shoulder missiles and twin arm guns. Leaves after 45 s."
+    },
+    "skitters": {
+      "name": "Skitter Swarm",
+      "faction": "alien",
+      "class": "inf",
+      "squad": 6,
+      "hp": 22,
+      "armor": 0,
+      "speed": 98,
+      "range": 26,
+      "damage": 4,
+      "rate": 2.0,
+      "air": false,
+      "cost": 60,
+      "pop": 1,
+      "time": 7,
+      "tech": 1,
+      "sight": 200,
+      "sprite": "skitter",
+      "ability": {
+        "id": "frenzy",
+        "name": "Frenzy",
+        "cooldown": 20,
+        "duration": 5
+      },
+      "desc": "Fast melee swarm."
+    },
+    "spitters": {
+      "name": "Spitters",
+      "faction": "alien",
+      "class": "inf",
+      "squad": 3,
+      "hp": 48,
+      "armor": 1,
+      "speed": 60,
+      "range": 175,
+      "damage": 8,
+      "rate": 1.3,
+      "air": true,
+      "cost": 110,
+      "pop": 1,
+      "time": 10,
+      "tech": 1,
+      "sight": 230,
+      "sprite": "spitter",
+      "bonus": {
+        "air": 1.4
+      },
+      "projectile": "acid",
+      "desc": "Ranged acid. Good vs air."
+    },
+    "brutes": {
+      "name": "Brutes",
+      "faction": "alien",
+      "class": "inf",
+      "squad": 2,
+      "hp": 170,
+      "armor": 3,
+      "speed": 52,
+      "range": 32,
+      "damage": 22,
+      "rate": 1.0,
+      "air": false,
+      "cost": 170,
+      "pop": 2,
+      "time": 14,
+      "tech": 2,
+      "sight": 200,
+      "sprite": "brute",
+      "ability": {
+        "id": "charge",
+        "name": "Charge",
+        "cooldown": 14,
+        "range": 220,
+        "radius": 50,
+        "damage": 50
+      },
+      "desc": "Soldier-caste wasps. Heavy melee with crushing mandibles."
+    },
+    "juggernaut": {
+      "name": "Juggernaut",
+      "faction": "alien",
+      "class": "veh",
+      "squad": 1,
+      "hp": 650,
+      "armor": 5,
+      "speed": 40,
+      "range": 44,
+      "damage": 38,
+      "rate": 0.8,
+      "splash": 30,
+      "air": false,
+      "cost": 340,
+      "pop": 3,
+      "time": 22,
+      "tech": 2,
+      "sight": 220,
+      "sprite": "juggernaut",
+      "desc": "Living tank. Crushes infantry."
+    },
+    "rollers": {
+      "name": "Rollers",
+      "faction": "alien",
+      "class": "veh",
+      "squad": 2,
+      "hp": 230,
+      "armor": 4,
+      "speed": 68,
+      "range": 32,
+      "damage": 20,
+      "rate": 1.0,
+      "air": false,
+      "cost": 220,
+      "pop": 2,
+      "time": 16,
+      "tech": 2,
+      "sight": 200,
+      "sprite": "juggernaut",
+      "ability": {
+        "id": "ram",
+        "name": "Roll",
+        "cooldown": 12,
+        "range": 260,
+        "radius": 50,
+        "damage": 60
+      },
+      "desc": "Armoured rollers. Curl into a spiked ball and smash through infantry lines."
+    },
+    "wrecker": {
+      "name": "Wrecker",
+      "faction": "alien",
+      "class": "veh",
+      "squad": 1,
+      "hp": 520,
+      "armor": 4,
+      "speed": 42,
+      "range": 42,
+      "damage": 44,
+      "rate": 0.7,
+      "splash": 25,
+      "air": false,
+      "cost": 300,
+      "pop": 3,
+      "time": 20,
+      "tech": 2,
+      "sight": 220,
+      "sprite": "juggernaut",
+      "bonus": {
+        "bld": 2.0
+      },
+      "ability": {
+        "id": "stomp",
+        "name": "Tail Slam",
+        "cooldown": 16,
+        "radius": 80,
+        "damage": 60,
+        "stun": 0.8
+      },
+      "desc": "Club-tailed siege beast. Smashes buildings, towers and bunkers."
+    },
+    "ravager": {
+      "name": "Ravager",
+      "faction": "alien",
+      "class": "veh",
+      "squad": 1,
+      "hp": 720,
+      "armor": 6,
+      "speed": 38,
+      "range": 44,
+      "damage": 56,
+      "rate": 0.6,
+      "splash": 35,
+      "air": false,
+      "cost": 420,
+      "pop": 4,
+      "time": 26,
+      "tech": 3,
+      "sight": 240,
+      "sprite": "juggernaut",
+      "ability": {
+        "id": "stomp",
+        "name": "Hammerfall",
+        "cooldown": 15,
+        "radius": 100,
+        "damage": 70,
+        "stun": 1.5
+      },
+      "desc": "Grown war-construct. Its hammer blows stun everything nearby."
+    },
+    "grub": {
+      "name": "Artillery Grub",
+      "faction": "alien",
+      "class": "veh",
+      "squad": 1,
+      "hp": 280,
+      "armor": 2,
+      "speed": 34,
+      "range": 320,
+      "min_range": 80,
+      "damage": 48,
+      "rate": 0.3,
+      "splash": 55,
+      "air": false,
+      "cost": 300,
+      "pop": 3,
+      "time": 22,
+      "tech": 2,
+      "sight": 240,
+      "sprite": "artillery_grub",
+      "projectile": "lob",
+      "bonus": {
+        "bld": 1.5
+      },
+      "desc": "Long-range siege."
+    },
+    "gliders": {
+      "name": "Glider Flock",
+      "faction": "alien",
+      "class": "air",
+      "squad": 3,
+      "hp": 50,
+      "armor": 0,
+      "speed": 130,
+      "range": 120,
+      "damage": 6,
+      "rate": 2.0,
+      "air": true,
+      "cost": 150,
+      "pop": 2,
+      "time": 12,
+      "tech": 1,
+      "sight": 260,
+      "sprite": "glider",
+      "desc": "Fast flyers. Strong vs vehicles."
+    },
+    "bomber": {
+      "name": "Bomber",
+      "faction": "alien",
+      "class": "air",
+      "squad": 1,
+      "hp": 240,
+      "armor": 1,
+      "speed": 82,
+      "range": 60,
+      "damage": 48,
+      "rate": 0.5,
+      "splash": 45,
+      "air": false,
+      "cost": 260,
+      "pop": 2,
+      "time": 18,
+      "tech": 2,
+      "sight": 240,
+      "sprite": "bomber",
+      "bonus": {
+        "bld": 2.0
+      },
+      "projectile": "lob",
+      "desc": "Drops acid on bases."
+    },
+    "carrier": {
+      "name": "Hive Carrier",
+      "faction": "alien",
+      "class": "air",
+      "squad": 1,
+      "hp": 950,
+      "armor": 2,
+      "speed": 50,
+      "range": 210,
+      "damage": 24,
+      "rate": 1.2,
+      "air": true,
+      "cost": 650,
+      "pop": 5,
+      "time": 32,
+      "tech": 3,
+      "sight": 280,
+      "sprite": "carrier",
+      "projectile": "acid",
+      "ability": {
+        "id": "brood",
+        "name": "Release Brood",
+        "cooldown": 25,
+        "spawn": "gliders"
+      },
+      "desc": "Flying hive."
+    },
+    "queen": {
+      "name": "Hive Queen",
+      "faction": "alien",
+      "class": "hero",
+      "squad": 1,
+      "hp": 2600,
+      "armor": 4,
+      "speed": 46,
+      "range": 130,
+      "damage": 34,
+      "rate": 1.2,
+      "splash": 40,
+      "air": true,
+      "cost": 0,
+      "pop": 0,
+      "time": 0,
+      "tech": 3,
+      "sight": 280,
+      "sprite": "hive_queen",
+      "respawn": 90,
+      "projectile": "acid",
+      "ability": {
+        "id": "brood",
+        "name": "Spawn Brood",
+        "cooldown": 20,
+        "spawn": "skitters"
+      },
+      "desc": "Alien leader."
+    },
+    "medics": {
+      "name": "Field Medics",
+      "faction": "player",
+      "class": "inf",
+      "squad": 2,
+      "hp": 50,
+      "armor": 0,
+      "speed": 74,
+      "range": 120,
+      "damage": 3,
+      "rate": 1.5,
+      "air": true,
+      "cost": 120,
+      "pop": 1,
+      "time": 10,
+      "tech": 1,
+      "sight": 220,
+      "sprite": "trooper",
+      "palette": "medic",
+      "heal": {
+        "radius": 130,
+        "rate": 9,
+        "classes": [
+          "inf",
+          "hero"
+        ]
+      },
+      "ability": {
+        "id": "stim_field",
+        "name": "Combat Stims",
+        "cooldown": 30,
+        "radius": 160,
+        "duration": 6
+      },
+      "desc": "Heals nearby infantry and the Commander."
+    },
+    "snipers": {
+      "name": "Sniper Team",
+      "faction": "player",
+      "class": "inf",
+      "squad": 2,
+      "hp": 40,
+      "armor": 0,
+      "speed": 64,
+      "range": 330,
+      "damage": 34,
+      "rate": 0.45,
+      "air": false,
+      "cost": 200,
+      "pop": 2,
+      "time": 16,
+      "tech": 2,
+      "sight": 360,
+      "sprite": "trooper",
+      "palette": "kestrel",
+      "bonus": {
+        "inf": 1.8,
+        "veh": 0.5
+      },
+      "detect": 160,
+      "ability": {
+        "id": "camo",
+        "name": "Camouflage",
+        "cooldown": 30,
+        "duration": 14
+      },
+      "desc": "Long-range infantry killers. Can cloak. Spot cloaked aliens nearby."
+    },
+    "commandos": {
+      "name": "Omega Commandos",
+      "faction": "player",
+      "class": "inf",
+      "squad": 2,
+      "hp": 230,
+      "armor": 3,
+      "speed": 82,
+      "range": 170,
+      "damage": 16,
+      "rate": 2.0,
+      "air": true,
+      "cost": 450,
+      "pop": 4,
+      "time": 26,
+      "tech": 3,
+      "sight": 280,
+      "sprite": "trooper",
+      "palette": "bastion",
+      "scale": 1.5,
+      "bonus": {
+        "veh": 1.3
+      },
+      "ability": {
+        "id": "jetpack",
+        "name": "Jetpack Slam",
+        "cooldown": 16,
+        "range": 260,
+        "radius": 70,
+        "damage": 90
+      },
+      "desc": "Elite super-soldiers. Good against everything. Tech 3."
+    },
+    "artillery": {
+      "name": "Rhino Artillery",
+      "faction": "player",
+      "class": "veh",
+      "squad": 1,
+      "hp": 300,
+      "armor": 2,
+      "speed": 48,
+      "range": 380,
+      "min_range": 100,
+      "damage": 55,
+      "rate": 0.28,
+      "splash": 60,
+      "air": false,
+      "cost": 320,
+      "pop": 3,
+      "time": 22,
+      "tech": 2,
+      "sight": 240,
+      "sprite": "artillery",
+      "projectile": "lob",
+      "bonus": {
+        "bld": 1.6
+      },
+      "ability": {
+        "id": "barrage",
+        "name": "Saturation Fire",
+        "cooldown": 30,
+        "range": 420,
+        "radius": 120,
+        "damage": 150
+      },
+      "desc": "Outranges base defenses. Weak up close, can't hit air."
+    },
+    "mantis": {
+      "name": "Mantis Walker",
+      "faction": "player",
+      "class": "veh",
+      "squad": 1,
+      "hp": 1100,
+      "armor": 4,
+      "speed": 56,
+      "range": 210,
+      "damage": 26,
+      "rate": 1.6,
+      "splash": 25,
+      "air": true,
+      "cost": 650,
+      "pop": 5,
+      "time": 32,
+      "tech": 3,
+      "sight": 280,
+      "sprite": "mantis",
+      "projectile": "rocket",
+      "ability": {
+        "id": "stomp",
+        "name": "Stomp",
+        "cooldown": 15,
+        "radius": 100,
+        "damage": 90,
+        "stun": 1.2
+      },
+      "desc": "Heavy assault walker. Hits ground and air. Tech 3."
+    },
+    "sparrow": {
+      "name": "Sparrow Repair Drone",
+      "faction": "player",
+      "class": "air",
+      "squad": 1,
+      "hp": 180,
+      "armor": 1,
+      "speed": 130,
+      "range": 0,
+      "damage": 0,
+      "rate": 1.0,
+      "air": false,
+      "ground": false,
+      "cost": 175,
+      "pop": 1,
+      "time": 14,
+      "tech": 2,
+      "sight": 260,
+      "sprite": "sparrow",
+      "heal": {
+        "radius": 150,
+        "rate": 14,
+        "classes": [
+          "veh",
+          "air",
+          "hero",
+          "bld"
+        ]
+      },
+      "desc": "Unarmed. Repairs vehicles, aircraft and buildings around it."
+    },
+    "menders": {
+      "name": "Menders",
+      "faction": "alien",
+      "class": "inf",
+      "squad": 2,
+      "hp": 55,
+      "armor": 1,
+      "speed": 60,
+      "range": 110,
+      "damage": 3,
+      "rate": 1.2,
+      "air": true,
+      "cost": 120,
+      "pop": 1,
+      "time": 10,
+      "tech": 1,
+      "sight": 220,
+      "sprite": "mender",
+      "projectile": "acid",
+      "heal": {
+        "radius": 130,
+        "rate": 9,
+        "classes": [
+          "inf",
+          "veh",
+          "hero"
+        ]
+      },
+      "desc": "Heal nearby aliens."
+    },
+    "leeches": {
+      "name": "Leeches",
+      "faction": "alien",
+      "class": "inf",
+      "squad": 2,
+      "hp": 105,
+      "armor": 1,
+      "speed": 66,
+      "range": 30,
+      "damage": 14,
+      "rate": 1.5,
+      "air": false,
+      "cost": 140,
+      "pop": 1,
+      "time": 11,
+      "tech": 2,
+      "sight": 200,
+      "sprite": "leech",
+      "lifesteal": 0.6,
+      "desc": "Tendril horrors. Melee; drain health from what they bite."
+    },
+    "cloakers": {
+      "name": "Cloakers",
+      "faction": "alien",
+      "class": "inf",
+      "squad": 3,
+      "hp": 50,
+      "armor": 0,
+      "speed": 80,
+      "range": 140,
+      "damage": 10,
+      "rate": 1.5,
+      "air": true,
+      "cost": 170,
+      "pop": 2,
+      "time": 14,
+      "tech": 2,
+      "sight": 240,
+      "sprite": "cloaker",
+      "stealth": true,
+      "bonus": {
+        "inf": 1.3
+      },
+      "desc": "Permanently invisible. Need detection to fight."
+    },
+    "burrowers": {
+      "name": "Burrowers",
+      "faction": "alien",
+      "class": "inf",
+      "squad": 3,
+      "hp": 85,
+      "armor": 2,
+      "speed": 62,
+      "range": 30,
+      "damage": 14,
+      "rate": 1.2,
+      "air": false,
+      "cost": 160,
+      "pop": 2,
+      "time": 13,
+      "tech": 2,
+      "sight": 200,
+      "sprite": "burrower",
+      "ability": {
+        "id": "burrow",
+        "name": "Tunnel",
+        "cooldown": 18,
+        "range": 500,
+        "radius": 60,
+        "damage": 50
+      },
+      "desc": "Tunnel under the map and burst out behind your lines."
+    },
+    "titan": {
+      "name": "Leviathan",
+      "faction": "alien",
+      "class": "veh",
+      "squad": 1,
+      "hp": 1600,
+      "armor": 6,
+      "speed": 30,
+      "range": 260,
+      "damage": 70,
+      "rate": 0.45,
+      "splash": 60,
+      "air": false,
+      "cost": 800,
+      "pop": 6,
+      "time": 38,
+      "tech": 3,
+      "sight": 280,
+      "sprite": "siege_titan",
+      "projectile": "lob",
+      "bonus": {
+        "bld": 1.4
+      },
+      "ability": {
+        "id": "burrow",
+        "name": "Erupt",
+        "cooldown": 20,
+        "range": 600,
+        "radius": 90,
+        "damage": 90
+      },
+      "desc": "Burrowing siege wurm. Spits bile over walls, tunnels under the map and erupts. Tech 3."
+    },
+    "shield_drone": {
+      "name": "Shield Drone",
+      "faction": "alien",
+      "class": "air",
+      "squad": 1,
+      "hp": 160,
+      "armor": 0,
+      "speed": 95,
+      "range": 0,
+      "damage": 0,
+      "rate": 1.0,
+      "air": false,
+      "ground": false,
+      "cost": 160,
+      "pop": 1,
+      "time": 12,
+      "tech": 2,
+      "sight": 240,
+      "sprite": "shield_drone",
+      "shield_aura": {
+        "radius": 130,
+        "cap": 70,
+        "rate": 12
+      },
+      "desc": "Projects shields over nearby aliens."
+    },
+    "hauler": {
+      "name": "Ore Hauler",
+      "faction": "player",
+      "class": "veh",
+      "squad": 1,
+      "hp": 1200,
+      "armor": 4,
+      "speed": 36,
+      "range": 0,
+      "damage": 0,
+      "rate": 1.0,
+      "air": false,
+      "ground": false,
+      "cost": 0,
+      "pop": 0,
+      "time": 0,
+      "tech": 1,
+      "sight": 220,
+      "sprite": "hauler",
+      "desc": "Unarmed ore transport. Escort it."
+    },
+    "architect": {
+      "name": "The Architect",
+      "faction": "alien",
+      "class": "hero",
+      "squad": 1,
+      "hp": 5000,
+      "armor": 6,
+      "speed": 40,
+      "range": 230,
+      "damage": 45,
+      "rate": 1.0,
+      "splash": 55,
+      "air": true,
+      "cost": 0,
+      "pop": 0,
+      "time": 0,
+      "tech": 3,
+      "sight": 320,
+      "sprite": "architect",
+      "projectile": "acid",
+      "detect": 260,
+      "ability": {
+        "id": "brood",
+        "name": "Rewrite",
+        "cooldown": 25,
+        "spawn": "brutes"
+      },
+      "desc": "The mind behind the swarm."
+    }
+  },
+  "buildings": {
+    "hq": {
+      "name": "Command Post",
+      "faction": "player",
+      "hp": 5200,
+      "armor": 3,
+      "cost": 600,
+      "time": 45,
+      "slots": 5,
+      "sockets": 4,
+      "income": 1.5,
+      "sight": 360,
+      "upgrade": {
+        "name": "Fortress",
+        "cost": 650,
+        "time": 45,
+        "tech": 2,
+        "slots": 7,
+        "hp": 1600
+      },
+      "desc": "Base core. Losing every base loses the game."
+    },
+    "supply": {
+      "name": "Supply Pad",
+      "faction": "player",
+      "hp": 900,
+      "armor": 2,
+      "cost": 150,
+      "time": 15,
+      "income": 2.5,
+      "upgrade": {
+        "name": "Heavy Supply Pad",
+        "cost": 225,
+        "time": 25,
+        "income": 1.5
+      },
+      "desc": "+Supplies over time."
+    },
+    "reactor": {
+      "name": "Reactor",
+      "faction": "player",
+      "hp": 900,
+      "armor": 2,
+      "cost": 175,
+      "time": 25,
+      "tech": 1,
+      "desc": "+1 Tech level (max 3). Unlocks advanced units."
+    },
+    "barracks": {
+      "name": "Barracks",
+      "faction": "player",
+      "hp": 1200,
+      "armor": 2,
+      "cost": 150,
+      "time": 20,
+      "trains": [
+        "marines",
+        "flamers",
+        "rockets",
+        "medics",
+        "snipers"
+      ],
+      "research": {
+        "frag_grenades": {
+          "name": "Frag Grenades",
+          "cost": 150,
+          "time": 25,
+          "desc": "Marines unlock Frag Grenade."
+        },
+        "inf_armor": {
+          "name": "Combat Armor",
+          "cost": 250,
+          "time": 35,
+          "tech": 2,
+          "desc": "Infantry +25% HP."
+        }
+      },
+      "desc": "Trains infantry."
+    },
+    "depot": {
+      "name": "Vehicle Depot",
+      "faction": "player",
+      "hp": 1300,
+      "armor": 3,
+      "cost": 200,
+      "time": 25,
+      "trains": [
+        "buggy",
+        "tank",
+        "aa",
+        "artillery",
+        "mantis"
+      ],
+      "research": {
+        "canister": {
+          "name": "Canister Shells",
+          "cost": 200,
+          "time": 30,
+          "desc": "Siege Tanks unlock Canister Shell."
+        },
+        "veh_armor": {
+          "name": "Reinforced Plating",
+          "cost": 300,
+          "time": 40,
+          "tech": 2,
+          "desc": "Vehicles +20% HP."
+        }
+      },
+      "desc": "Builds vehicles."
+    },
+    "airpad": {
+      "name": "Air Pad",
+      "faction": "player",
+      "hp": 1100,
+      "armor": 2,
+      "cost": 225,
+      "time": 25,
+      "tech": 2,
+      "trains": [
+        "hornet",
+        "sparrow",
+        "gunship"
+      ],
+      "research": {
+        "afterburners": {
+          "name": "Afterburners",
+          "cost": 200,
+          "time": 30,
+          "desc": "Air units +25% speed."
+        },
+        "air_weapons": {
+          "name": "Missile Pods",
+          "cost": 300,
+          "time": 40,
+          "tech": 3,
+          "desc": "Air units +20% damage."
+        }
+      },
+      "desc": "Builds aircraft. Needs Tech 2."
+    },
+    "armory": {
+      "name": "Field Armory",
+      "faction": "player",
+      "hp": 1000,
+      "armor": 2,
+      "cost": 150,
+      "time": 20,
+      "research": {
+        "weapons1": {
+          "name": "Weapons I",
+          "cost": 200,
+          "time": 30,
+          "desc": "All units +15% damage."
+        },
+        "weapons2": {
+          "name": "Weapons II",
+          "cost": 350,
+          "time": 45,
+          "tech": 2,
+          "after": "weapons1",
+          "desc": "All units +15% more damage."
+        },
+        "capacitors": {
+          "name": "Power Capacitors",
+          "cost": 250,
+          "time": 35,
+          "desc": "Leader powers recharge 25% faster."
+        },
+        "turret_plating": {
+          "name": "Turret Plating",
+          "cost": 200,
+          "time": 30,
+          "desc": "Towers +40% HP."
+        }
+      },
+      "desc": "Army-wide upgrades."
+    },
+    "hive": {
+      "name": "Hive",
+      "faction": "alien",
+      "hp": 5600,
+      "armor": 3,
+      "cost": 550,
+      "time": 45,
+      "slots": 5,
+      "sockets": 4,
+      "income": 1.5,
+      "sight": 340,
+      "upgrade": {
+        "name": "Elder Hive",
+        "cost": 600,
+        "time": 45,
+        "tech": 2,
+        "slots": 7,
+        "hp": 1600
+      },
+      "desc": "Alien base core."
+    },
+    "pool": {
+      "name": "Biomass Pool",
+      "faction": "alien",
+      "hp": 800,
+      "armor": 2,
+      "cost": 140,
+      "time": 15,
+      "income": 2.5,
+      "upgrade": {
+        "name": "Deep Pool",
+        "cost": 220,
+        "time": 25,
+        "income": 1.5
+      },
+      "desc": "+Biomass over time."
+    },
+    "node": {
+      "name": "Synapse Node",
+      "faction": "alien",
+      "hp": 900,
+      "armor": 2,
+      "cost": 175,
+      "time": 25,
+      "tech": 1,
+      "desc": "+1 Tech."
+    },
+    "nest": {
+      "name": "Brood Nest",
+      "faction": "alien",
+      "hp": 1200,
+      "armor": 2,
+      "cost": 150,
+      "time": 20,
+      "trains": [
+        "skitters",
+        "spitters",
+        "brutes",
+        "menders",
+        "leeches"
+      ],
+      "desc": "Spawns infantry."
+    },
+    "pit": {
+      "name": "Gestation Pit",
+      "faction": "alien",
+      "hp": 1300,
+      "armor": 3,
+      "cost": 200,
+      "time": 25,
+      "trains": [
+        "juggernaut",
+        "rollers",
+        "wrecker",
+        "grub"
+      ],
+      "desc": "Grows heavy beasts."
+    },
+    "spire": {
+      "name": "Flyer Spire",
+      "faction": "alien",
+      "hp": 1100,
+      "armor": 2,
+      "cost": 225,
+      "time": 25,
+      "tech": 2,
+      "trains": [
+        "gliders",
+        "bomber",
+        "shield_drone",
+        "carrier"
+      ],
+      "desc": "Hatches flyers."
+    },
+    "specops": {
+      "name": "Spec Ops Center",
+      "faction": "player",
+      "hp": 1200,
+      "armor": 3,
+      "cost": 250,
+      "time": 30,
+      "tech_req": 3,
+      "trains": [
+        "commandos"
+      ],
+      "research": {
+        "jump_jets": {
+          "name": "Jump Jets",
+          "cost": 200,
+          "time": 30,
+          "desc": "Commandos and Snipers +20% speed."
+        },
+        "hollow_point": {
+          "name": "Hollow Points",
+          "cost": 250,
+          "time": 35,
+          "desc": "Infantry +20% damage vs infantry."
+        }
+      },
+      "desc": "Trains Omega Commandos. Needs Tech 3."
+    },
+    "sensor": {
+      "name": "Sensor Array",
+      "faction": "player",
+      "hp": 800,
+      "armor": 2,
+      "cost": 150,
+      "time": 18,
+      "sight": 620,
+      "detect": 560,
+      "scan": {
+        "cooldown": 45,
+        "radius": 260,
+        "time": 12
+      },
+      "desc": "Huge vision, detects cloaked aliens, and can Scan any spot on the map."
+    },
+    "shieldgen": {
+      "name": "Shield Generator",
+      "faction": "player",
+      "hp": 900,
+      "armor": 2,
+      "cost": 200,
+      "time": 22,
+      "tech_req": 2,
+      "shield": {
+        "radius": 360,
+        "frac": 0.3,
+        "rate": 40
+      },
+      "desc": "Shields every building and tower in this base (30% of their HP)."
+    },
+    "evo": {
+      "name": "Evolution Chamber",
+      "faction": "alien",
+      "hp": 1000,
+      "armor": 2,
+      "cost": 175,
+      "time": 22,
+      "research": {
+        "carapace": {
+          "name": "Chitin Carapace",
+          "cost": 250,
+          "time": 35,
+          "desc": "Aliens +20% HP."
+        },
+        "adrenal": {
+          "name": "Adrenal Glands",
+          "cost": 300,
+          "time": 40,
+          "tech": 2,
+          "desc": "Aliens +15% damage and speed."
+        }
+      },
+      "desc": "Alien evolutions."
+    },
+    "den": {
+      "name": "Shadow Den",
+      "faction": "alien",
+      "hp": 1100,
+      "armor": 2,
+      "cost": 200,
+      "time": 24,
+      "tech_req": 2,
+      "detect": 420,
+      "trains": [
+        "cloakers",
+        "burrowers"
+      ],
+      "desc": "Stealth and tunneling breeds. Detects cloaked units."
+    },
+    "cradle": {
+      "name": "Leviathan Cradle",
+      "faction": "alien",
+      "hp": 1500,
+      "armor": 4,
+      "cost": 300,
+      "time": 34,
+      "tech_req": 3,
+      "trains": [
+        "ravager",
+        "titan"
+      ],
+      "desc": "Grows Leviathans and Ravagers. Tech 3."
+    },
+    "heart": {
+      "name": "Seed Heart",
+      "faction": "alien",
+      "hp": 20000,
+      "armor": 6,
+      "cost": 0,
+      "time": 60,
+      "slots": 7,
+      "sockets": 4,
+      "income": 3.0,
+      "sight": 420,
+      "detect": 320,
+      "desc": "The Architect's new body. Destroy it.",
+      "radius": 64
+    }
+  },
+  "alien_tower": {
+    "name": "Spine Tower",
+    "hp": 750,
+    "armor": 2,
+    "cost": 150,
+    "time": 15,
+    "range": 210,
+    "damage": 14,
+    "rate": 1.4,
+    "air": true
+  },
+  "towers": {
+    "_comment": "Your tower loadout is built on base sockets. Stats come from data/towers.json, scaled here.",
+    "per_category": 3,
+    "cost_mult": 2.0,
+    "hp_mult": 7.0,
+    "damage_mult": 1.6,
+    "range_mult": 1.25,
+    "build_time": 15
+  },
+  "relays": {
+    "capture_time": 8,
+    "radius": 90,
+    "income": 0.6,
+    "power_cut": 0.08,
+    "sight": 320
+  },
+  "crates": {
+    "min": 60,
+    "max": 160
+  },
+  "expansion_cost": {
+    "player": 600,
+    "alien": 550
+  },
+  "powers": {
+    "orbital": {
+      "name": "Orbital Strike",
+      "key": "Z",
+      "cost": 300,
+      "cooldown": 70,
+      "radius": 110,
+      "damage": 420,
+      "delay": 1.6
+    },
+    "cryo": {
+      "name": "Cryo Bomb",
+      "key": "X",
+      "cost": 200,
+      "cooldown": 50,
+      "radius": 150,
+      "damage": 40,
+      "slow": 0.6,
+      "slow_time": 6
+    },
+    "repair": {
+      "name": "Repair Wave",
+      "key": "C",
+      "cost": 150,
+      "cooldown": 45,
+      "radius": 200,
+      "heal": 0.5
+    },
+    "mech": {
+      "name": "Mech Drop",
+      "key": "V",
+      "cost": 450,
+      "cooldown": 140
+    }
+  },
+  "leaders": {
+    "_comment": "Commander picks (data/commanders.json) mapped to Command-mode passives.",
+    "vanguard": {
+      "desc": "Commander +50% HP and +60% damage.",
+      "hero_hp": 1.5,
+      "hero_damage": 1.6
+    },
+    "engineer": {
+      "desc": "Buildings and towers cost 15% less. Repair Wave heals fully.",
+      "build_cost": 0.85,
+      "repair_heal": 1.0
+    },
+    "tactician": {
+      "desc": "Leader powers recharge 35% faster and hit 25% harder.",
+      "power_cooldown": 0.65,
+      "power_damage": 1.25
+    },
+    "ignis": {
+      "desc": "Flamers +35% damage. Orbital Strike leaves fire.",
+      "unit_damage": {
+        "flamers": 1.35
+      },
+      "orbital_burn": true
+    },
+    "rime": {
+      "desc": "Cryo Bomb slows 50% longer. Slowed aliens take +25% damage.",
+      "cryo_time": 1.5,
+      "slowed_damage": 1.25
+    },
+    "bastion": {
+      "desc": "Buildings and towers +50% HP.",
+      "building_hp": 1.5
+    },
+    "kestrel": {
+      "desc": "Air units +20% damage and cost 15% less.",
+      "class_damage": {
+        "air": 1.2
+      },
+      "class_cost": {
+        "air": 0.85
+      }
+    },
+    "ledger": {
+      "desc": "+300 starting Supplies, +15% income.",
+      "start_supplies": 300,
+      "income": 1.15
+    },
+    "hawk": {
+      "desc": "Rocket Troopers and Siege Tanks +20% range and damage.",
+      "unit_range": {
+        "rockets": 1.2,
+        "tank": 1.2
+      },
+      "unit_damage": {
+        "rockets": 1.2,
+        "tank": 1.2
+      }
+    }
+  },
+  "ai": {
+    "difficulties": {
+      "Easy": {
+        "income": 0.75,
+        "first_attack": 300,
+        "attack_every": 150,
+        "army_mult": 0.8,
+        "expand_at": 360
+      },
+      "Normal": {
+        "income": 1.0,
+        "first_attack": 220,
+        "attack_every": 120,
+        "army_mult": 1.0,
+        "expand_at": 270
+      },
+      "Hard": {
+        "income": 1.3,
+        "first_attack": 170,
+        "attack_every": 100,
+        "army_mult": 1.2,
+        "expand_at": 200
+      },
+      "Legendary": {
+        "income": 1.7,
+        "first_attack": 130,
+        "attack_every": 80,
+        "army_mult": 1.4,
+        "expand_at": 150
+      }
+    },
+    "build_order": [
+      "pool",
+      "nest",
+      "node",
+      "pool",
+      "pit",
+      "evo",
+      "spire"
+    ],
+    "wild_guards": [
+      "skitters",
+      "spitters"
+    ],
+    "elder_extra": [
+      "den",
+      "node",
+      "cradle"
+    ]
+  },
+  "maps": {
+    "dune_sea": {
+      "name": "Dune Sea",
+      "theme": "desert",
+      "w": 96,
+      "h": 64,
+      "seed": 4101,
+      "sites": 6,
+      "relays": 3,
+      "rocks": 0.11,
+      "hazard": 0.03
+    },
+    "frostbite": {
+      "name": "Frostbite Ridge",
+      "theme": "frozen",
+      "w": 96,
+      "h": 64,
+      "seed": 5202,
+      "sites": 6,
+      "relays": 3,
+      "rocks": 0.14,
+      "hazard": 0.02
+    },
+    "verdant": {
+      "name": "Verdant Basin",
+      "theme": "jungle",
+      "w": 104,
+      "h": 68,
+      "seed": 6303,
+      "sites": 8,
+      "relays": 4,
+      "rocks": 0.12,
+      "hazard": 0.03
+    },
+    "shard_fields": {
+      "name": "Shard Fields",
+      "theme": "crystal",
+      "w": 96,
+      "h": 64,
+      "seed": 7404,
+      "sites": 6,
+      "relays": 3,
+      "rocks": 0.13,
+      "hazard": 0.02
+    },
+    "magma_rift": {
+      "name": "Magma Rift",
+      "theme": "magma",
+      "w": 96,
+      "h": 64,
+      "seed": 8505,
+      "sites": 6,
+      "relays": 3,
+      "rocks": 0.1,
+      "hazard": 0.06
+    },
+    "hive_reach": {
+      "name": "Hive Reach",
+      "theme": "hive",
+      "w": 104,
+      "h": 68,
+      "seed": 9606,
+      "sites": 8,
+      "relays": 4,
+      "rocks": 0.12,
+      "hazard": 0.04
+    },
+    "old_colony": {
+      "name": "Old Colony",
+      "theme": "ruins",
+      "w": 96,
+      "h": 64,
+      "seed": 1707,
+      "sites": 6,
+      "relays": 3,
+      "rocks": 0.15,
+      "hazard": 0.01
+    },
+    "green_expanse": {
+      "name": "Green Expanse",
+      "theme": "plains",
+      "w": 112,
+      "h": 72,
+      "seed": 2808,
+      "sites": 8,
+      "relays": 4,
+      "rocks": 0.09,
+      "hazard": 0.02
+    }
+  },
+  "leader_powers": {
+    "vanguard": {
+      "id": "mech",
+      "name": "Mech Drop",
+      "cost": 450,
+      "cooldown": 140,
+      "desc": "Drops the Omega Mech, a walking fortress, for 45 seconds."
+    },
+    "engineer": {
+      "id": "turret_drop",
+      "name": "Turret Drop",
+      "cost": 250,
+      "cooldown": 70,
+      "tower": "pulse",
+      "tier": 2,
+      "duration": 60,
+      "count": 2,
+      "desc": "Drops two tier-3 Pulse Turrets anywhere for 60 seconds."
+    },
+    "tactician": {
+      "id": "carpet",
+      "name": "Carpet Bombing",
+      "cost": 350,
+      "cooldown": 90,
+      "radius": 70,
+      "damage": 160,
+      "length": 420,
+      "count": 8,
+      "desc": "A line of bombs from your nearest base toward the target."
+    },
+    "ignis": {
+      "id": "firestorm",
+      "name": "Firestorm",
+      "cost": 300,
+      "cooldown": 80,
+      "radius": 170,
+      "damage": 45,
+      "duration": 8,
+      "desc": "Sets a huge area ablaze for 8 seconds."
+    },
+    "rime": {
+      "id": "deep_freeze",
+      "name": "Deep Freeze",
+      "cost": 300,
+      "cooldown": 85,
+      "radius": 170,
+      "stun": 4,
+      "desc": "Freezes every alien in the area solid for 4 seconds."
+    },
+    "bastion": {
+      "id": "bulwark",
+      "name": "Bulwark",
+      "cost": 250,
+      "cooldown": 90,
+      "shield": 0.6,
+      "desc": "Every building and tower you own gets a shield worth 60% of its HP."
+    },
+    "kestrel": {
+      "id": "drone_swarm",
+      "name": "Drone Swarm",
+      "cost": 300,
+      "cooldown": 80,
+      "count": 6,
+      "duration": 30,
+      "desc": "Six attack drones join the fight for 30 seconds."
+    },
+    "ledger": {
+      "id": "supply_drop",
+      "name": "Supply Drop",
+      "cost": 0,
+      "cooldown": 120,
+      "amount": 450,
+      "desc": "An orbital supply pod: +450 Supplies."
+    },
+    "hawk": {
+      "id": "sniper_net",
+      "name": "Sniper Network",
+      "cost": 300,
+      "cooldown": 90,
+      "damage": 220,
+      "targets": 6,
+      "reveal": 15,
+      "desc": "Orbital snipers hit the 6 toughest visible aliens and reveal the area."
+    }
+  },
+  "alien_powers": {
+    "spore_storm": {
+      "name": "Spore Storm",
+      "cooldown": 100,
+      "radius": 130,
+      "damage": 14,
+      "duration": 6
+    },
+    "swarm_call": {
+      "name": "Swarm Call",
+      "cooldown": 120,
+      "count": 2,
+      "unit": "skitters"
+    },
+    "acid_rain": {
+      "name": "Acid Rain",
+      "cooldown": 110,
+      "radius": 160,
+      "damage": 35,
+      "count": 5
+    }
+  },
+  "veterancy": {
+    "kills": [
+      3,
+      8,
+      16
+    ],
+    "damage": 0.15,
+    "hp": 0.1
+  },
+  "reinforce": {
+    "radius": 330,
+    "rate": 0.05,
+    "delay": 4
+  },
+  "detection": {
+    "near": 80,
+    "commander": 200,
+    "queen": 240,
+    "hive": 200,
+    "spine": 180,
+    "radar": 1.0
+  },
+  "bunker": {
+    "name": "Bunker",
+    "cost": 200,
+    "hp": 2200,
+    "range": 220,
+    "time": 12,
+    "capacity": 3,
+    "damage_bonus": 1.25,
+    "desc": "Built on a tower socket. Up to 3 infantry squads garrison inside: protected, +25% damage and range 220."
+  }
+}

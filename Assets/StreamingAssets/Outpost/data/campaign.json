@@ -1,0 +1,1679 @@
+{
+  "_comment": "Command-mode campaign 'Omega Rising' (game/rts/mission.py, scenes/rts_campaign.py). Speakers come from story.json. Place references: player_main, alien_main, near:K / far:K (K-th nearest / farthest expansion site from your start), relay:K (K-th nearest relay), mid. Objective types: clear_wild, bases, have, units, survive, relays, destroy, destroy_bases, rescue, reach, escort, kill, protect. Trigger 'on': start, t:<sec>, objective:<i>, sight:<unit kind>, hp:<building kind>:<fraction>, reach:<objective>:<point>. Actions: line, spawn {units, at, attack}, alert.",
+  "title": "Operation: Omega Rising",
+  "base_unlocks": {
+    "buildings": [
+      "supply",
+      "barracks"
+    ],
+    "units": [
+      "marines",
+      "commander"
+    ],
+    "powers": [
+      "orbital"
+    ],
+    "towers": false
+  },
+  "missions": [
+    {
+      "id": "op1",
+      "title": "Landfall",
+      "chapter": "Operation 1",
+      "summary": "Land on the plains of Kepler IV, clear a wild nest and set up your first Command Post.",
+      "map": {
+        "theme": "plains",
+        "w": 116,
+        "h": 76,
+        "seed": 31011,
+        "sites": 6,
+        "relays": 1,
+        "rocks": 0.1,
+        "hazard": 0.01,
+        "crates": 25
+      },
+      "unlock": {},
+      "player": {
+        "base": false,
+        "supplies": 800,
+        "units": [
+          "marines",
+          "marines"
+        ]
+      },
+      "alien": {
+        "base": false
+      },
+      "wild": [
+        "player_main",
+        "near:1"
+      ],
+      "ai": {},
+      "objectives": [
+        {
+          "type": "clear_wild",
+          "site": "player_main",
+          "text": "Clear the wild nest at the landing zone"
+        },
+        {
+          "type": "bases",
+          "count": 1,
+          "text": "Build a Command Post on the landing pad"
+        },
+        {
+          "type": "have",
+          "kind": "barracks",
+          "count": 1,
+          "text": "Build a Barracks"
+        },
+        {
+          "type": "units",
+          "kind": "marines",
+          "count": 4,
+          "text": "Field 4 Marine squads"
+        },
+        {
+          "type": "relays",
+          "count": 1,
+          "hold": 0,
+          "optional": true,
+          "text": "Bonus: capture the relay"
+        }
+      ],
+      "briefing": [
+        [
+          "NARRATOR",
+          "2190. The Hive Heart is ash, but its seed-ships scattered across the Kepler Belt before the fleet's guns found them."
+        ],
+        [
+          "OKORO",
+          "Commander Vance, the defense war is over. Command is giving you something new: a mobile strike group. No more walls."
+        ],
+        [
+          "VANCE",
+          "No walls. I could get used to that."
+        ],
+        [
+          "PATCH",
+          "Dropships are hot. First stop, Kepler IV. Pretty grass, nasty locals."
+        ],
+        [
+          "MARROW",
+          "A seed-ship came down here three weeks ago. Whatever grew out of it is still small. Let's keep it that way."
+        ],
+        [
+          "OKORO",
+          "Clear the landing zone, set up a Command Post and build a fighting force. Then we start hunting."
+        ]
+      ],
+      "radio": [
+        {
+          "on": "t:3",
+          "line": [
+            "PATCH",
+            "Select the Marines with a drag, right-click to move. Right-click a bug to shoot it."
+          ]
+        },
+        {
+          "on": "objective:0",
+          "line": [
+            "PATCH",
+            "Pad's clear! Click the landing pad to drop a Command Post."
+          ]
+        },
+        {
+          "on": "objective:1",
+          "line": [
+            "VANCE",
+            "Click the Command Post, then a free slot in the ring. Supply Pads first, then a Barracks."
+          ]
+        },
+        {
+          "on": "objective:2",
+          "line": [
+            "PATCH",
+            "Barracks is up. Click it and queue some Marines."
+          ]
+        },
+        {
+          "on": "sight:skitters",
+          "line": [
+            "MARROW",
+            "Skitters. Fast and hungry, but they die easy."
+          ]
+        }
+      ],
+      "debrief": [
+        [
+          "OKORO",
+          "A foothold. Good work, Commander."
+        ],
+        [
+          "MARROW",
+          "The nest had a signal organ. It was calling to something across the desert."
+        ],
+        [
+          "VANCE",
+          "Then we go see who answers."
+        ]
+      ]
+    },
+    {
+      "id": "op2",
+      "title": "Hold the Line",
+      "chapter": "Operation 2",
+      "summary": "A swarm is marching on the desert outpost. Hold for seven minutes while the evacuation finishes.",
+      "map": {
+        "theme": "desert",
+        "w": 124,
+        "h": 82,
+        "seed": 32022,
+        "sites": 8,
+        "relays": 4,
+        "rocks": 0.12,
+        "hazard": 0.02,
+        "crates": 25
+      },
+      "unlock": {
+        "buildings": [
+          "reactor",
+          "depot"
+        ],
+        "units": [
+          "flamers",
+          "buggy",
+          "tank"
+        ],
+        "powers": [
+          "cryo"
+        ],
+        "towers": true
+      },
+      "player": {
+        "base": true,
+        "buildings": [
+          "supply",
+          "barracks",
+          "supply"
+        ],
+        "supplies": 900,
+        "units": [
+          "marines",
+          "marines",
+          "flamers"
+        ]
+      },
+      "alien": {
+        "base": false
+      },
+      "wild": [],
+      "waves": {
+        "start": 45,
+        "every": 40,
+        "until": 400,
+        "budget": 260,
+        "growth": 75,
+        "pool": [
+          "skitters",
+          "skitters",
+          "spitters",
+          "brutes",
+          "gliders"
+        ],
+        "from": [
+          "alien_main",
+          "far:0",
+          "far:1"
+        ],
+        "target": "player_main"
+      },
+      "objectives": [
+        {
+          "type": "survive",
+          "time": 420,
+          "text": "Hold out until the evacuation is done"
+        },
+        {
+          "type": "relays",
+          "count": 2,
+          "hold": 0,
+          "optional": true,
+          "text": "Bonus: own 2 relays at once"
+        }
+      ],
+      "briefing": [
+        [
+          "NARRATOR",
+          "Dust Basin outpost. Two hundred colonists and one landing field."
+        ],
+        [
+          "OKORO",
+          "The signal Marrow found is pulling every swarm in the region toward that outpost. The transports need seven minutes."
+        ],
+        [
+          "PATCH",
+          "We've got tower sockets around the Command Post now. Pick your loadout and bolt them in."
+        ],
+        [
+          "VANCE",
+          "And a Vehicle Depot. I want armor out front, towers behind it."
+        ],
+        [
+          "MARROW",
+          "They'll come from the north and east. Lots of them."
+        ]
+      ],
+      "radio": [
+        {
+          "on": "t:20",
+          "line": [
+            "PATCH",
+            "Small squares next to the Command Post are tower sockets. Click one."
+          ]
+        },
+        {
+          "on": "t:120",
+          "line": [
+            "OKORO",
+            "First transport is away. Keep them off the field."
+          ]
+        },
+        {
+          "on": "sight:gliders",
+          "line": [
+            "MARROW",
+            "Flyers! Infantry beats air. Your Marines can handle them, tanks can't."
+          ]
+        },
+        {
+          "on": "t:240",
+          "line": [
+            "VANCE",
+            "Halfway. Patch, more Cryo on that ridge."
+          ]
+        },
+        {
+          "on": "t:380",
+          "line": [
+            "OKORO",
+            "Last transport loading. Forty seconds!"
+          ]
+        }
+      ],
+      "debrief": [
+        [
+          "OKORO",
+          "All transports clear. Not one colonist lost."
+        ],
+        [
+          "MARROW",
+          "The swarms that hit us were following a radio pulse from the ice fields up north. A relay network."
+        ],
+        [
+          "VANCE",
+          "They're using relays? Ours?"
+        ],
+        [
+          "MARROW",
+          "Ours. Rewired."
+        ]
+      ]
+    },
+    {
+      "id": "op3",
+      "title": "Cold Signal",
+      "chapter": "Operation 3",
+      "summary": "The aliens are using our old relays to coordinate. Take three of them and hold them for a minute.",
+      "map": {
+        "theme": "frozen",
+        "w": 140,
+        "h": 92,
+        "seed": 33033,
+        "sites": 8,
+        "relays": 4,
+        "rocks": 0.13,
+        "hazard": 0.02,
+        "crates": 25
+      },
+      "unlock": {
+        "buildings": [
+          "airpad",
+          "armory"
+        ],
+        "units": [
+          "rockets",
+          "aa",
+          "hornet"
+        ],
+        "powers": [
+          "repair"
+        ]
+      },
+      "player": {
+        "base": true,
+        "buildings": [
+          "supply",
+          "barracks"
+        ],
+        "supplies": 700,
+        "units": [
+          "marines",
+          "marines",
+          "buggy"
+        ]
+      },
+      "alien": {
+        "base": true,
+        "buildings": [
+          "pool",
+          "nest",
+          "pool"
+        ],
+        "units": [
+          "skitters",
+          "spitters",
+          "skitters",
+          "spitters"
+        ],
+        "towers": 1
+      },
+      "wild": [
+        "near:0",
+        "near:1"
+      ],
+      "ai": {
+        "passive_until": 240,
+        "max_tech": 2,
+        "no_expand": true
+      },
+      "objectives": [
+        {
+          "type": "relays",
+          "count": 3,
+          "hold": 60,
+          "text": "Own all 3 relays for 60 seconds"
+        },
+        {
+          "type": "destroy_bases",
+          "optional": true,
+          "text": "Bonus: destroy the Hive"
+        }
+      ],
+      "briefing": [
+        [
+          "NARRATOR",
+          "Frostbite Ridge. Three relay towers, built by the colonies, now humming with alien chatter."
+        ],
+        [
+          "MARROW",
+          "If we hold all three at once for a minute, I can push a scrambler through the whole network."
+        ],
+        [
+          "PATCH",
+          "Air Pad's unlocked. Hornets eat vehicles for breakfast."
+        ],
+        [
+          "OKORO",
+          "There's a Hive dug in on the far side. It'll wake up once it notices you."
+        ]
+      ],
+      "radio": [
+        {
+          "on": "t:10",
+          "line": [
+            "PATCH",
+            "Park units on a relay to capture it. Capturing also speeds up your leader powers."
+          ]
+        },
+        {
+          "on": "t:230",
+          "line": [
+            "MARROW",
+            "The Hive is stirring. Expect visitors."
+          ]
+        },
+        {
+          "on": "objective:0",
+          "line": [
+            "MARROW",
+            "Scrambler's in. Their whole network just went deaf."
+          ]
+        }
+      ],
+      "debrief": [
+        [
+          "MARROW",
+          "Before the network died I traced one last message. It went to a landing site in the hive wastes."
+        ],
+        [
+          "OKORO",
+          "That's where Survey Team Kilo went dark. Three squads, Commander."
+        ],
+        [
+          "VANCE",
+          "Then we go get them."
+        ]
+      ]
+    },
+    {
+      "id": "op4",
+      "title": "Survivors",
+      "chapter": "Operation 4",
+      "summary": "Find the three missing survey squads in the hive wastes, then burn out the Hive that hunts them.",
+      "map": {
+        "theme": "hive",
+        "w": 144,
+        "h": 98,
+        "seed": 34044,
+        "sites": 12,
+        "relays": 4,
+        "rocks": 0.12,
+        "hazard": 0.04,
+        "crates": 25
+      },
+      "unlock": {
+        "buildings": [
+          "sensor"
+        ],
+        "units": [
+          "medics"
+        ],
+        "powers": [
+          "leader"
+        ]
+      },
+      "player": {
+        "base": true,
+        "buildings": [
+          "supply",
+          "barracks",
+          "reactor"
+        ],
+        "supplies": 800,
+        "units": [
+          "marines",
+          "marines",
+          "buggy"
+        ]
+      },
+      "alien": {
+        "base": true,
+        "buildings": [
+          "pool",
+          "nest",
+          "pool",
+          "node"
+        ],
+        "units": [
+          "skitters",
+          "skitters",
+          "spitters",
+          "spitters",
+          "brutes",
+          "skitters"
+        ],
+        "towers": 3
+      },
+      "wild": [
+        "near:0"
+      ],
+      "ai": {
+        "max_tech": 2,
+        "no_expand": true,
+        "first_attack": 260
+      },
+      "objectives": [
+        {
+          "type": "rescue",
+          "points": [
+            "near:1",
+            "far:2",
+            "relay:1"
+          ],
+          "reward": [
+            [
+              "marines",
+              "rockets"
+            ],
+            [
+              "tank"
+            ],
+            [
+              "medics",
+              "medics"
+            ]
+          ],
+          "text": "Find the survey squads"
+        },
+        {
+          "type": "destroy_bases",
+          "text": "Destroy the Hive"
+        },
+        {
+          "type": "have",
+          "kind": "sensor",
+          "count": 1,
+          "optional": true,
+          "text": "Bonus: build a Sensor Array"
+        }
+      ],
+      "briefing": [
+        [
+          "NARRATOR",
+          "The hive wastes. Purple ground that breathes."
+        ],
+        [
+          "OKORO",
+          "Kilo's beacons are still pinging from three spots. They're alive, or their beacons are."
+        ],
+        [
+          "MARROW",
+          "Medics are cleared for deployment. And your own leader power is ready, Commander. Use it."
+        ],
+        [
+          "PATCH",
+          "Beacon spots are marked on the minimap. Get any unit close and they'll join up."
+        ]
+      ],
+      "radio": [
+        {
+          "on": "reach:0:0",
+          "line": [
+            "PATCH",
+            "Kilo-One, found! They're mad and well armed."
+          ]
+        },
+        {
+          "on": "reach:0:1",
+          "line": [
+            "VANCE",
+            "Kilo-Two's got a tank. Bless them."
+          ]
+        },
+        {
+          "on": "reach:0:2",
+          "line": [
+            "MARROW",
+            "Kilo-Three were the medics. Lucky us."
+          ]
+        },
+        {
+          "on": "objective:0",
+          "line": [
+            "OKORO",
+            "All of Kilo accounted for. Now pay that Hive back."
+          ]
+        }
+      ],
+      "debrief": [
+        [
+          "VANCE",
+          "Kilo, report. What did you find out here?"
+        ],
+        [
+          "PATCH",
+          "They say the bugs were hauling crystal ore to a volcanic forge. Building something big."
+        ],
+        [
+          "OKORO",
+          "Then we take the ore first."
+        ]
+      ]
+    },
+    {
+      "id": "op5",
+      "title": "Forge Fire",
+      "chapter": "Operation 5",
+      "summary": "Escort two ore Haulers across the magma rift to the extraction zone.",
+      "map": {
+        "theme": "magma",
+        "w": 150,
+        "h": 96,
+        "seed": 35055,
+        "sites": 12,
+        "relays": 4,
+        "rocks": 0.1,
+        "hazard": 0.06,
+        "crates": 25
+      },
+      "unlock": {
+        "buildings": [
+          "shieldgen"
+        ],
+        "units": [
+          "snipers",
+          "artillery"
+        ]
+      },
+      "player": {
+        "base": true,
+        "buildings": [
+          "supply",
+          "barracks",
+          "depot",
+          "reactor"
+        ],
+        "supplies": 900,
+        "units": [
+          "marines",
+          "marines",
+          "tank",
+          "buggy"
+        ]
+      },
+      "alien": {
+        "base": true,
+        "buildings": [
+          "pool",
+          "nest",
+          "pit",
+          "pool"
+        ],
+        "units": [
+          "skitters",
+          "spitters",
+          "brutes",
+          "skitters",
+          "spitters"
+        ],
+        "towers": 2,
+        "extra_bases": [
+          {
+            "site": "near:2",
+            "buildings": [
+              "pool",
+              "nest"
+            ],
+            "towers": 3
+          }
+        ]
+      },
+      "wild": [],
+      "ai": {
+        "max_tech": 2,
+        "no_expand": true,
+        "first_attack": 200
+      },
+      "escort": {
+        "kind": "hauler",
+        "count": 2
+      },
+      "objectives": [
+        {
+          "type": "escort",
+          "kind": "hauler",
+          "to": "far:0",
+          "need": 1,
+          "text": "Get a Hauler to the extraction zone"
+        },
+        {
+          "type": "escort",
+          "kind": "hauler",
+          "to": "far:0",
+          "need": 2,
+          "optional": true,
+          "text": "Bonus: both Haulers make it"
+        },
+        {
+          "type": "destroy",
+          "site": "near:2",
+          "optional": true,
+          "text": "Bonus: wipe out the forward nest"
+        }
+      ],
+      "briefing": [
+        [
+          "NARRATOR",
+          "The Forge Rift. Rivers of lava and a stolen ore stockpile."
+        ],
+        [
+          "PATCH",
+          "Two Haulers, full of the crystal the bugs wanted. They're slow and they don't shoot."
+        ],
+        [
+          "OKORO",
+          "Extraction zone is across the rift. Lose both and this whole op was for nothing."
+        ],
+        [
+          "MARROW",
+          "Snipers and Rhino artillery are cleared. The Rhinos outrange their Spine Towers."
+        ]
+      ],
+      "radio": [
+        {
+          "on": "t:5",
+          "line": [
+            "VANCE",
+            "Select a Hauler and right-click the extraction marker. Escort them in."
+          ]
+        },
+        {
+          "on": "t:25",
+          "line": [
+            "MARROW",
+            "Hive scouts have spotted the Haulers. Here they come."
+          ],
+          "spawn": {
+            "units": [
+              "skitters",
+              "skitters",
+              "spitters"
+            ],
+            "at": "alien_main",
+            "attack": "convoy"
+          }
+        },
+        {
+          "on": "escort:half",
+          "line": [
+            "PATCH",
+            "Halfway there. Movement in the rocks, heads up!"
+          ],
+          "spawn": {
+            "units": [
+              "skitters",
+              "skitters",
+              "brutes",
+              "spitters",
+              "brutes",
+              "spitters"
+            ],
+            "at": "convoy:250",
+            "attack": "convoy"
+          }
+        },
+        {
+          "on": "objective:0",
+          "line": [
+            "OKORO",
+            "Ore is on the lift. Good work."
+          ]
+        },
+        {
+          "on": "t:70",
+          "line": [
+            "PATCH",
+            "Flyers inbound on the convoy!"
+          ],
+          "spawn": {
+            "units": [
+              "gliders",
+              "gliders",
+              "skitters"
+            ],
+            "at": "far:1",
+            "attack": "convoy"
+          }
+        }
+      ],
+      "debrief": [
+        [
+          "MARROW",
+          "Strange. The ore is resonating with something. A frequency. It's the same one that came from the Heart."
+        ],
+        [
+          "OKORO",
+          "The Heart is dead."
+        ],
+        [
+          "MARROW",
+          "Something is singing its song, Admiral."
+        ]
+      ]
+    },
+    {
+      "id": "op6",
+      "title": "Open Ground",
+      "chapter": "Operation 6",
+      "summary": "A full-scale war on the open plains. Destroy both alien bases.",
+      "map": {
+        "theme": "plains",
+        "w": 200,
+        "h": 130,
+        "seed": 36066,
+        "sites": 16,
+        "relays": 6,
+        "rocks": 0.09,
+        "hazard": 0.02,
+        "crates": 31
+      },
+      "unlock": {
+        "units": [
+          "sparrow",
+          "gunship"
+        ]
+      },
+      "player": {
+        "base": true,
+        "buildings": [
+          "supply",
+          "barracks",
+          "supply"
+        ],
+        "supplies": 800,
+        "units": [
+          "marines",
+          "marines",
+          "buggy",
+          "tank",
+          "rockets"
+        ]
+      },
+      "alien": {
+        "base": true,
+        "buildings": [
+          "pool",
+          "nest",
+          "node",
+          "pool"
+        ],
+        "units": [
+          "skitters",
+          "skitters",
+          "spitters",
+          "brutes",
+          "gliders"
+        ],
+        "towers": 2,
+        "extra_bases": [
+          {
+            "site": "far:3",
+            "buildings": [
+              "pool",
+              "nest",
+              "pool"
+            ],
+            "towers": 2
+          }
+        ]
+      },
+      "wild": [
+        "near:1",
+        "near:2"
+      ],
+      "ai": {
+        "first_attack": 330
+      },
+      "objectives": [
+        {
+          "type": "destroy_bases",
+          "text": "Destroy every alien base"
+        },
+        {
+          "type": "bases",
+          "count": 3,
+          "optional": true,
+          "text": "Bonus: own 3 bases at once"
+        }
+      ],
+      "briefing": [
+        [
+          "NARRATOR",
+          "The Green Expanse. No canyons, no chokepoints. Just room to fight."
+        ],
+        [
+          "OKORO",
+          "Two hives are growing out here. If they link up, they'll own the continent."
+        ],
+        [
+          "VANCE",
+          "Then they don't link up."
+        ],
+        [
+          "PATCH",
+          "Gunships are cleared. And expansions, Commander. Every new base means more Supplies and more army."
+        ]
+      ],
+      "radio": [
+        {
+          "on": "t:60",
+          "line": [
+            "PATCH",
+            "Yellow pads are expansion sites. Bring units, clear any nest, then click the pad."
+          ]
+        },
+        {
+          "on": "sight:juggernaut",
+          "line": [
+            "MARROW",
+            "Juggernaut. Infantry won't scratch it. Hornets will."
+          ]
+        },
+        {
+          "on": "t:600",
+          "line": [
+            "OKORO",
+            "Ten minutes. The hives are getting bolder."
+          ]
+        }
+      ],
+      "debrief": [
+        [
+          "OKORO",
+          "The plains are ours. Sensors picked up an old ship buried in the ruins to the east."
+        ],
+        [
+          "VANCE",
+          "The Meridian?"
+        ],
+        [
+          "MARROW",
+          "Its computer is still running. And something is reading it."
+        ]
+      ]
+    },
+    {
+      "id": "op7",
+      "title": "Ghost Ship",
+      "chapter": "Operation 7",
+      "summary": "A Commander-led strike team. Download three data terminals and burn the Shadow Den. Vance must survive.",
+      "map": {
+        "theme": "ruins",
+        "w": 96,
+        "h": 64,
+        "seed": 37077,
+        "sites": 6,
+        "relays": 3,
+        "rocks": 0.14,
+        "hazard": 0.01,
+        "crates": 12
+      },
+      "unlock": {},
+      "player": {
+        "base": false,
+        "supplies": 600,
+        "units": [
+          "snipers",
+          "snipers",
+          "marines",
+          "marines",
+          "medics",
+          "rockets"
+        ],
+        "no_expand": true
+      },
+      "alien": {
+        "base": false,
+        "extra_bases": [
+          {
+            "site": "far:0",
+            "buildings": [
+              "den",
+              "pool"
+            ],
+            "towers": 3
+          }
+        ],
+        "units_at": [
+          {
+            "units": [
+              "cloakers",
+              "cloakers"
+            ],
+            "at": "far:1"
+          },
+          {
+            "units": [
+              "skitters",
+              "spitters"
+            ],
+            "at": "near:2"
+          },
+          {
+            "units": [
+              "brutes",
+              "spitters"
+            ],
+            "at": "far:0"
+          }
+        ]
+      },
+      "wild": [
+        "near:1"
+      ],
+      "ai": {
+        "passive_until": 99999,
+        "no_expand": true
+      },
+      "commander_respawn": false,
+      "objectives": [
+        {
+          "type": "reach",
+          "points": [
+            "near:2",
+            "far:1",
+            "relay:2"
+          ],
+          "who": "any",
+          "text": "Download the data terminals",
+          "hold": 12
+        },
+        {
+          "type": "destroy",
+          "kind": "den",
+          "text": "Destroy the Shadow Den"
+        },
+        {
+          "type": "protect",
+          "kind": "commander",
+          "text": "Commander Vance must survive"
+        },
+        {
+          "type": "destroy",
+          "site": "far:0",
+          "optional": true,
+          "text": "Bonus: wipe out the whole outpost"
+        }
+      ],
+      "briefing": [
+        [
+          "NARRATOR",
+          "The wreck of the UES Meridian, half buried in colony ruins."
+        ],
+        [
+          "OKORO",
+          "No base this time. Just you and a strike team, Commander. In and out."
+        ],
+        [
+          "MARROW",
+          "Something here can turn invisible. Your Snipers will spot them up close. Keep them near the group."
+        ],
+        [
+          "PATCH",
+          "If you go down, Vance, there's nobody to drag you home. Be careful."
+        ]
+      ],
+      "radio": [
+        {
+          "on": "t:8",
+          "line": [
+            "VANCE",
+            "Terminals are marked. Snipers stay with me."
+          ]
+        },
+        {
+          "on": "reach:0:0",
+          "line": [
+            "MARROW",
+            "First download done. These are survey logs. Someone kept writing after the crew died."
+          ],
+          "spawn": {
+            "units": [
+              "cloakers",
+              "skitters"
+            ],
+            "at": "far:2",
+            "attack": "commander"
+          }
+        },
+        {
+          "on": "reach:0:1",
+          "line": [
+            "MARROW",
+            "Second log. Coordinates. A garden. A crystal cave. A seed."
+          ],
+          "spawn": {
+            "units": [
+              "leeches",
+              "skitters"
+            ],
+            "at": "relay:0",
+            "attack": "commander"
+          }
+        },
+        {
+          "on": "objective:0",
+          "line": [
+            "VANCE",
+            "That's all three. Now the nest that's been watching us."
+          ]
+        },
+        {
+          "on": "sight:cloakers",
+          "line": [
+            "PATCH",
+            "Shimmer in the air! Those are Cloakers. Keep the Snipers close."
+          ]
+        },
+        {
+          "on": "t:30",
+          "line": [
+            "MARROW",
+            "Stand next to a terminal for a few seconds to download it. Keep the area clear."
+          ]
+        }
+      ],
+      "debrief": [
+        [
+          "MARROW",
+          "The Meridian's computer was being read. Not by a hive. By one mind."
+        ],
+        [
+          "ARCHITECT",
+          "YOU BURNED ONE HEART, COMMANDER. I AM PLANTING ANOTHER."
+        ],
+        [
+          "VANCE",
+          "The Architect. I thought that thing died with the Heart."
+        ],
+        [
+          "OKORO",
+          "Then we kill it properly this time."
+        ]
+      ],
+      "hero_hp": 1.6
+    },
+    {
+      "id": "op8",
+      "title": "Green Hell",
+      "chapter": "Operation 8",
+      "summary": "The Architect is breeding Leviathans in the jungle. Hold three bases and destroy the Leviathan Cradle.",
+      "map": {
+        "theme": "jungle",
+        "w": 180,
+        "h": 118,
+        "seed": 38088,
+        "sites": 14,
+        "relays": 6,
+        "rocks": 0.12,
+        "hazard": 0.03,
+        "crates": 30
+      },
+      "unlock": {
+        "buildings": [
+          "specops"
+        ],
+        "units": [
+          "commandos",
+          "mantis"
+        ]
+      },
+      "player": {
+        "base": true,
+        "buildings": [
+          "supply",
+          "barracks",
+          "reactor",
+          "depot"
+        ],
+        "supplies": 1000,
+        "units": [
+          "marines",
+          "marines",
+          "tank",
+          "snipers",
+          "rockets",
+          "medics",
+          "tank"
+        ]
+      },
+      "alien": {
+        "base": true,
+        "buildings": [
+          "pool",
+          "nest",
+          "node",
+          "cradle",
+          "pool"
+        ],
+        "units": [
+          "skitters",
+          "brutes",
+          "spitters"
+        ],
+        "towers": 3,
+        "extra_bases": [
+          {
+            "site": "far:2",
+            "buildings": [
+              "pool",
+              "pit"
+            ],
+            "towers": 1
+          },
+          {
+            "site": "far:3",
+            "buildings": [
+              "pool",
+              "spire"
+            ],
+            "towers": 1
+          }
+        ]
+      },
+      "wild": [
+        "near:1"
+      ],
+      "ai": {
+        "first_attack": 360,
+        "attack_every": 140
+      },
+      "objectives": [
+        {
+          "type": "bases",
+          "count": 3,
+          "text": "Own 3 bases at once"
+        },
+        {
+          "type": "destroy",
+          "kind": "cradle",
+          "text": "Destroy the Leviathan Cradle"
+        },
+        {
+          "type": "units",
+          "kind": "commandos",
+          "count": 1,
+          "optional": true,
+          "text": "Bonus: field Omega Commandos"
+        }
+      ],
+      "briefing": [
+        [
+          "NARRATOR",
+          "Verdant Basin. A year ago it was a mining moon. Now it is a jungle."
+        ],
+        [
+          "MARROW",
+          "The Architect is growing Leviathans here. Burrowing siege wurms. One Cradle feeds them all."
+        ],
+        [
+          "OKORO",
+          "Tech 3 is cleared: Spec Ops and the Mantis Walker. You'll need the economy to afford them, so expand."
+        ],
+        [
+          "PATCH",
+          "Three bases, one Cradle. Easy. Ha."
+        ]
+      ],
+      "radio": [
+        {
+          "on": "sight:titan",
+          "line": [
+            "MARROW",
+            "Leviathan! Hit it with everything, it outranges your towers."
+          ]
+        },
+        {
+          "on": "objective:0",
+          "line": [
+            "OKORO",
+            "Three bases. The basin's supply lines are ours."
+          ]
+        },
+        {
+          "on": "objective:1",
+          "line": [
+            "VANCE",
+            "Cradle's down. No more Leviathans."
+          ]
+        }
+      ],
+      "debrief": [
+        [
+          "MARROW",
+          "The Leviathans were guarding a path into the crystal caves. The Meridian logs said 'a crystal cave'."
+        ],
+        [
+          "OKORO",
+          "Something big is waiting there. Our scans show a Hive Queen."
+        ],
+        [
+          "VANCE",
+          "She's the Architect's gatekeeper. Let's knock."
+        ]
+      ]
+    },
+    {
+      "id": "op9",
+      "title": "The Singing Caves",
+      "chapter": "Operation 9",
+      "summary": "Kill the Hive Queen guarding the crystal caves and destroy her hives.",
+      "map": {
+        "theme": "crystal",
+        "w": 130,
+        "h": 86,
+        "seed": 39099,
+        "sites": 10,
+        "relays": 4,
+        "rocks": 0.14,
+        "hazard": 0.02,
+        "crates": 16
+      },
+      "unlock": {},
+      "player": {
+        "base": true,
+        "buildings": [
+          "supply",
+          "barracks",
+          "reactor",
+          "depot",
+          "supply"
+        ],
+        "supplies": 1100,
+        "units": [
+          "marines",
+          "marines",
+          "tank",
+          "medics",
+          "rockets",
+          "aa",
+          "tank"
+        ]
+      },
+      "alien": {
+        "base": true,
+        "buildings": [
+          "pool",
+          "nest",
+          "node",
+          "node",
+          "spire"
+        ],
+        "units": [
+          "skitters",
+          "spitters",
+          "brutes",
+          "menders"
+        ],
+        "towers": 3,
+        "hero": true,
+        "extra_bases": [
+          {
+            "site": "far:2",
+            "buildings": [
+              "pool",
+              "den",
+              "nest"
+            ],
+            "towers": 2
+          }
+        ]
+      },
+      "wild": [
+        "near:1",
+        "near:2"
+      ],
+      "ai": {
+        "shift": 0,
+        "first_attack": 360,
+        "attack_every": 140
+      },
+      "objectives": [
+        {
+          "type": "kill",
+          "kind": "queen",
+          "text": "Kill the Hive Queen"
+        },
+        {
+          "type": "destroy_bases",
+          "text": "Destroy every alien base"
+        },
+        {
+          "type": "relays",
+          "count": 3,
+          "hold": 0,
+          "optional": true,
+          "text": "Bonus: own all 3 relays"
+        }
+      ],
+      "briefing": [
+        [
+          "NARRATOR",
+          "The Shard Fields. Under them, caves that hum."
+        ],
+        [
+          "MARROW",
+          "Listen. The crystals are carrying the Architect's song. The Queen amplifies it."
+        ],
+        [
+          "OKORO",
+          "Kill the Queen and the caves go quiet. Kill the hives and she stays dead."
+        ],
+        [
+          "PATCH",
+          "Queens spawn brood when they're hurt. Bring a lot of guns."
+        ]
+      ],
+      "radio": [
+        {
+          "on": "sight:queen",
+          "line": [
+            "VANCE",
+            "Eyes on the Queen. Focus fire!"
+          ]
+        },
+        {
+          "on": "objective:0",
+          "line": [
+            "MARROW",
+            "The song stopped. For a second I could hear something under it. A heartbeat."
+          ]
+        },
+        {
+          "on": "t:420",
+          "line": [
+            "OKORO",
+            "The hives are evolving faster here, Commander. Finish it."
+          ]
+        }
+      ],
+      "debrief": [
+        [
+          "MARROW",
+          "The heartbeat. It's coming from the hive moon. Under the old Heart's crater."
+        ],
+        [
+          "ARCHITECT",
+          "COME, COMMANDER. SEE WHAT GROWS IN THE ASHES."
+        ],
+        [
+          "OKORO",
+          "Everything we have goes with you. This ends at the Seed Heart."
+        ]
+      ]
+    },
+    {
+      "id": "op10",
+      "title": "The Seed Heart",
+      "chapter": "Operation 10",
+      "summary": "The final battle. Destroy the Seed Heart and the Architect itself.",
+      "map": {
+        "theme": "hive",
+        "w": 200,
+        "h": 130,
+        "seed": 40100,
+        "sites": 16,
+        "relays": 6,
+        "rocks": 0.12,
+        "hazard": 0.04,
+        "crates": 31
+      },
+      "unlock": {},
+      "player": {
+        "base": true,
+        "buildings": [
+          "supply",
+          "barracks",
+          "reactor",
+          "depot",
+          "supply"
+        ],
+        "supplies": 1400,
+        "units": [
+          "marines",
+          "marines",
+          "tank",
+          "tank",
+          "medics",
+          "rockets",
+          "hornet",
+          "aa"
+        ]
+      },
+      "alien": {
+        "base": true,
+        "hq": "heart",
+        "buildings": [
+          "pool",
+          "nest",
+          "node",
+          "node",
+          "spire",
+          "cradle",
+          "pool"
+        ],
+        "units": [
+          "skitters",
+          "brutes",
+          "spitters",
+          "juggernaut"
+        ],
+        "towers": 4,
+        "hero": true,
+        "extra_bases": [
+          {
+            "site": "far:2",
+            "buildings": [
+              "pool",
+              "nest",
+              "pit"
+            ],
+            "towers": 2
+          },
+          {
+            "site": "far:3",
+            "buildings": [
+              "pool",
+              "den",
+              "spire"
+            ],
+            "towers": 2
+          }
+        ]
+      },
+      "wild": [],
+      "ai": {
+        "shift": 0,
+        "first_attack": 420,
+        "attack_every": 130
+      },
+      "objectives": [
+        {
+          "type": "destroy",
+          "kind": "heart",
+          "text": "Destroy the Seed Heart"
+        },
+        {
+          "type": "kill",
+          "kind": "architect",
+          "text": "Kill the Architect"
+        },
+        {
+          "type": "destroy_bases",
+          "optional": true,
+          "text": "Bonus: leave no hive standing"
+        }
+      ],
+      "triggers": [
+        {
+          "on": "hp:heart:0.5",
+          "line": [
+            "ARCHITECT",
+            "ENOUGH. I WILL UNMAKE YOU MYSELF."
+          ],
+          "spawn": {
+            "units": [
+              "architect",
+              "brutes",
+              "brutes"
+            ],
+            "at": "alien_main",
+            "attack": "player_main"
+          }
+        }
+      ],
+      "briefing": [
+        [
+          "NARRATOR",
+          "The hive moon. Where the old Heart died, a new one has grown."
+        ],
+        [
+          "OKORO",
+          "Commander, the fleet is in orbit. Everything we have is on the ground with you."
+        ],
+        [
+          "MARROW",
+          "The Seed Heart is the Architect's body now. Hurt it, and the Architect will have to come out to protect it."
+        ],
+        [
+          "ARCHITECT",
+          "I WROTE THE GROUND. I WROTE THE SWARM. I WILL WRITE YOUR ENDING."
+        ],
+        [
+          "VANCE",
+          "Not today."
+        ],
+        [
+          "PATCH",
+          "Oh, I love it when she says that."
+        ]
+      ],
+      "radio": [
+        {
+          "on": "t:15",
+          "line": [
+            "OKORO",
+            "Expand fast, Commander. You'll need every base you can get."
+          ]
+        },
+        {
+          "on": "sight:architect",
+          "line": [
+            "MARROW",
+            "That's it. That's the Architect. Kill it and the swarm loses its mind for good."
+          ]
+        },
+        {
+          "on": "objective:0",
+          "line": [
+            "VANCE",
+            "Heart's down! Find that thing!"
+          ]
+        },
+        {
+          "on": "objective:1",
+          "line": [
+            "ARCHITECT",
+            "THE GROUND... FORGETS... ME..."
+          ]
+        }
+      ],
+      "debrief": [
+        [
+          "NARRATOR",
+          "The Seed Heart collapsed into its own crater. Across the Belt, every swarm stopped at once."
+        ],
+        [
+          "MARROW",
+          "No signal. No song. They're just animals now. For real this time."
+        ],
+        [
+          "PATCH",
+          "So... gardening?"
+        ],
+        [
+          "OKORO",
+          "Commander Vance, Omega Command is the reason the colonies have a future."
+        ],
+        [
+          "VANCE",
+          "Then let's go build it. No walls this time."
+        ],
+        [
+          "NARRATOR",
+          "OPERATION: OMEGA RISING COMPLETE. Thank you for playing."
+        ]
+      ]
+    }
+  ]
+}

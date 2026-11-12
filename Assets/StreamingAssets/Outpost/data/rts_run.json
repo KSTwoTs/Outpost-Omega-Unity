@@ -1,0 +1,1600 @@
+{
+  "_comment": "Command-mode Siege Run (game/rts/run.py, scenes/rts_run.py). Effects use Sim.run_mod keys '<scope>:<stat>': scope = all / class:<inf|veh|air|hero> / unit:<kind> / towers / powers. Multipliers multiply together; stats listed in 'additive' add up instead.",
+  "acts": 3,
+  "floors_per_act": 6,
+  "floor_width": [
+    2,
+    4
+  ],
+  "integrity": 3,
+  "veteran_slots": 4,
+  "start_supplies": 650,
+  "node_weights": {
+    "battle": 44,
+    "elite": 12,
+    "event": 14,
+    "shop": 10,
+    "rest": 9,
+    "lab": 8
+  },
+  "elite_min_floor": 2,
+  "themes": [
+    [
+      "desert",
+      "plains"
+    ],
+    [
+      "frozen",
+      "jungle",
+      "crystal"
+    ],
+    [
+      "hive",
+      "magma",
+      "ruins"
+    ]
+  ],
+  "battle_types": {
+    "assault": {
+      "name": "Assault",
+      "desc": "Destroy the Hive outpost.",
+      "weight": 4
+    },
+    "defense": {
+      "name": "Holdout",
+      "desc": "Survive the swarm until evac.",
+      "weight": 3
+    },
+    "relays": {
+      "name": "Signal War",
+      "desc": "Hold every relay at once.",
+      "weight": 2
+    },
+    "rescue": {
+      "name": "Recovery",
+      "desc": "Find the stranded squads, then wipe out the Hive.",
+      "weight": 2
+    }
+  },
+  "bosses": [
+    {
+      "name": "The Brood Queen",
+      "title": "THE BROOD QUEEN",
+      "subtitle": "Mother of the swarm",
+      "desc": "A Hive Queen behind two Gate Hives.",
+      "unit": "queen",
+      "hp_mult": 2.4,
+      "dmg_mult": 1.15,
+      "armor": 2,
+      "scale": 1.6,
+      "gates": 2,
+      "gate_hp": 1.5,
+      "gate_buildings": [
+        "pool",
+        "nest",
+        "node"
+      ],
+      "gate_towers": 2,
+      "gate_guards": [
+        "brutes",
+        "spitters",
+        "skitters"
+      ],
+      "attacks": [
+        "acid_barrage",
+        "brood_call",
+        "burrow"
+      ],
+      "cooldowns": {
+        "acid_barrage": 12,
+        "brood_call": 22,
+        "burrow": 19
+      },
+      "enrage": 0.5,
+      "brood": [
+        "skitters",
+        "skitters",
+        "spitters"
+      ],
+      "wave_every": 90,
+      "wave_budget": 280,
+      "wave_growth": 45,
+      "wave_pool": [
+        "skitters",
+        "spitters",
+        "brutes",
+        "gliders"
+      ],
+      "counter": [
+        "brutes",
+        "spitters",
+        "skitters"
+      ],
+      "gate_reinforce": [
+        "marines",
+        "rockets"
+      ],
+      "awake_reinforce": [
+        "tank",
+        "marines",
+        "medics"
+      ],
+      "army": [
+        "marines",
+        "marines",
+        "rockets",
+        "medics",
+        "tank",
+        "buggy"
+      ],
+      "supplies_bonus": 500,
+      "income": 1.3,
+      "awake_banner": "THE QUEEN AWAKENS",
+      "enrage_banner": "THE QUEEN IS ENRAGED",
+      "lines": {
+        "intro": [
+          [
+            "OKORO",
+            "That's her nest. Two Gate Hives are feeding a shield around the Queen."
+          ],
+          [
+            "PATCH",
+            "Break the gates and the shield comes down. Reinforcements are standing by."
+          ]
+        ],
+        "gate": [
+          [
+            "PATCH",
+            "Gate down! Fresh squads are landing at your base."
+          ]
+        ],
+        "awake": [
+          [
+            "MARROW",
+            "Shield's gone. She's coming out. Watch the ground for acid."
+          ]
+        ],
+        "enrage": [
+          [
+            "OKORO",
+            "She's hurt and furious. Keep moving, don't bunch up."
+          ]
+        ],
+        "death": [
+          [
+            "VANCE",
+            "The Queen is dead. The brood is scattering."
+          ]
+        ]
+      },
+      "first_wave": 150,
+      "power": 0.85,
+      "drip_every": 70,
+      "drip": [
+        "marines",
+        "rockets"
+      ]
+    },
+    {
+      "name": "The Leviathan",
+      "title": "THE LEVIATHAN",
+      "subtitle": "A burrowing siege wurm, already on the move",
+      "desc": "A Leviathan tunnels toward your base, shielded by three Gate Hives.",
+      "unit": "titan",
+      "hp_mult": 9,
+      "dmg_mult": 1.3,
+      "armor": 3,
+      "scale": 1.7,
+      "gates": 3,
+      "gate_hp": 1.6,
+      "shield": 0.85,
+      "march": true,
+      "march_speed": 0.35,
+      "march_attacks": [
+        "bombard",
+        "burrow"
+      ],
+      "gate_buildings": [
+        "pool",
+        "nest",
+        "node",
+        "pit"
+      ],
+      "gate_towers": 2,
+      "gate_guards": [
+        "juggernaut",
+        "brutes",
+        "spitters"
+      ],
+      "attacks": [
+        "bombard",
+        "stomp",
+        "birth",
+        "burrow"
+      ],
+      "cooldowns": {
+        "bombard": 14,
+        "stomp": 9,
+        "birth": 26,
+        "burrow": 20
+      },
+      "enrage": 0.4,
+      "birth": [
+        "juggernaut",
+        "brutes",
+        "brutes"
+      ],
+      "wave_every": 85,
+      "wave_budget": 420,
+      "wave_growth": 65,
+      "wave_pool": [
+        "brutes",
+        "spitters",
+        "juggernaut",
+        "leeches",
+        "gliders",
+        "menders"
+      ],
+      "counter": [
+        "juggernaut",
+        "brutes"
+      ],
+      "gate_reinforce": [
+        "tank",
+        "rockets",
+        "marines"
+      ],
+      "awake_reinforce": [
+        "mantis",
+        "tank",
+        "medics"
+      ],
+      "army": [
+        "marines",
+        "marines",
+        "rockets",
+        "rockets",
+        "medics",
+        "tank",
+        "tank",
+        "aa"
+      ],
+      "supplies_bonus": 700,
+      "income": 1.35,
+      "awake_banner": "THE LEVIATHAN'S SHIELD BREAKS",
+      "enrage_banner": "THE LEVIATHAN RAMPAGES",
+      "lines": {
+        "intro": [
+          [
+            "OKORO",
+            "Seismic readings... something big is tunneling. Straight at us."
+          ],
+          [
+            "PATCH",
+            "Three Gate Hives are powering its shield. Every one you break weakens it."
+          ]
+        ],
+        "gate": [
+          [
+            "PATCH",
+            "Gate down, its shield is flickering. More armor landing at base."
+          ]
+        ],
+        "awake": [
+          [
+            "MARROW",
+            "Shield's gone! Now it bleeds. Spread out, it erupts under you."
+          ]
+        ],
+        "enrage": [
+          [
+            "OKORO",
+            "It's tearing everything apart. Finish it!"
+          ]
+        ],
+        "death": [
+          [
+            "VANCE",
+            "The Leviathan is down. Take a breath."
+          ]
+        ],
+        "march": [
+          [
+            "MARROW",
+            "It's burrowing toward us. Break those gates before it surfaces in our base!"
+          ]
+        ]
+      },
+      "first_wave": 150,
+      "power": 1.0,
+      "march_delay": 120,
+      "march_banner": "THE LEVIATHAN IS TUNNELING TOWARD YOUR BASE",
+      "drip_every": 70,
+      "drip": [
+        "marines",
+        "tank"
+      ]
+    },
+    {
+      "name": "The Architect",
+      "title": "THE ARCHITECT",
+      "subtitle": "The mind behind the swarm",
+      "desc": "The Architect and the Seed Heart behind four Gate Hives.",
+      "unit": "architect",
+      "hp_mult": 2.4,
+      "dmg_mult": 1.4,
+      "armor": 3,
+      "scale": 1.5,
+      "gates": 4,
+      "gate_hp": 1.7,
+      "heart": true,
+      "gate_buildings": [
+        "pool",
+        "nest",
+        "node",
+        "pit",
+        "spire"
+      ],
+      "gate_towers": 3,
+      "gate_guards": [
+        "brutes",
+        "cloakers",
+        "spitters"
+      ],
+      "attacks": [
+        "mind_beam",
+        "blink",
+        "pylons",
+        "acid_barrage"
+      ],
+      "cooldowns": {
+        "mind_beam": 9,
+        "blink": 14,
+        "pylons": 24,
+        "acid_barrage": 13
+      },
+      "enrage": 0.5,
+      "pylons": [
+        "shield_drone",
+        "shield_drone",
+        "brutes"
+      ],
+      "wave_every": 80,
+      "wave_budget": 520,
+      "wave_growth": 80,
+      "wave_pool": [
+        "brutes",
+        "spitters",
+        "juggernaut",
+        "grub",
+        "bomber",
+        "cloakers",
+        "burrowers",
+        "leeches"
+      ],
+      "counter": [
+        "brutes",
+        "cloakers",
+        "juggernaut"
+      ],
+      "gate_reinforce": [
+        "tank",
+        "commandos"
+      ],
+      "awake_reinforce": [
+        "mantis",
+        "commandos",
+        "medics"
+      ],
+      "heart_reinforce": [
+        "mantis",
+        "gunship",
+        "commandos"
+      ],
+      "pulse_every": 11,
+      "pulse_radius": 300,
+      "pulse_damage": 70,
+      "pulse_brood": [
+        "brutes",
+        "skitters",
+        "spitters"
+      ],
+      "army": [
+        "marines",
+        "marines",
+        "rockets",
+        "rockets",
+        "medics",
+        "snipers",
+        "tank",
+        "tank",
+        "aa",
+        "hornet"
+      ],
+      "supplies_bonus": 900,
+      "income": 1.4,
+      "awake_banner": "THE ARCHITECT DESCENDS",
+      "enrage_banner": "THE ARCHITECT REWRITES ITSELF",
+      "lines": {
+        "intro": [
+          [
+            "ARCHITECT",
+            "YOU CAME ALL THIS WAY TO DIE AT MY HEART."
+          ],
+          [
+            "OKORO",
+            "Four Gate Hives, one shield. Break them all and it has nowhere to hide."
+          ]
+        ],
+        "gate": [
+          [
+            "ARCHITECT",
+            "I WILL GROW ANOTHER."
+          ]
+        ],
+        "awake": [
+          [
+            "ARCHITECT",
+            "VERY WELL. I WILL DO THIS MYSELF."
+          ]
+        ],
+        "enrage": [
+          [
+            "ARCHITECT",
+            "YOU ADAPT. SO DO I."
+          ]
+        ],
+        "death": [
+          [
+            "VANCE",
+            "The Architect is down! Now the Heart!"
+          ]
+        ],
+        "heart": [
+          [
+            "OKORO",
+            "The Seed Heart is exposed. Burn it before it seeds again."
+          ]
+        ],
+        "heart_dead": [
+          [
+            "VANCE",
+            "It's over. The swarm has no mind left."
+          ]
+        ]
+      },
+      "first_wave": 150,
+      "power": 1.15,
+      "drip_every": 65,
+      "drip": [
+        "marines",
+        "rockets",
+        "tank"
+      ]
+    }
+  ],
+  "start_deck": {
+    "buildings": [
+      "supply",
+      "barracks",
+      "depot",
+      "reactor"
+    ],
+    "units": [
+      "marines",
+      "flamers",
+      "buggy",
+      "tank",
+      "commander"
+    ],
+    "powers": [
+      "orbital",
+      "cryo",
+      "repair",
+      "leader"
+    ]
+  },
+  "start_tower_pool": [
+    "pulse",
+    "tesla",
+    "cryo",
+    "missile",
+    "flak",
+    "mortar",
+    "laser",
+    "repair",
+    "radar",
+    "barricade"
+  ],
+  "start_towers": 2,
+  "additive": [
+    "armor_pierce",
+    "start_rank",
+    "containment",
+    "no_regen",
+    "accuracy",
+    "reflect_guard",
+    "start_supplies",
+    "pop_cap",
+    "veteran_slots",
+    "integrity",
+    "scrap_mult",
+    "adapt_slow",
+    "prefab_reactor",
+    "prefab_bunkers",
+    "free_heal"
+  ],
+  "strains": {
+    "carapace": {
+      "name": "Hardened Carapace",
+      "effects": {
+        "hp": 0.15
+      },
+      "desc": "+15% HP per stack"
+    },
+    "adrenal": {
+      "name": "Adrenal Surge",
+      "effects": {
+        "speed": 0.1,
+        "rate": 0.1
+      },
+      "desc": "+10% speed and attack speed per stack"
+    },
+    "feral": {
+      "name": "Feral Rage",
+      "effects": {
+        "damage": 0.14
+      },
+      "desc": "+14% damage per stack"
+    },
+    "plated": {
+      "name": "Bone Plating",
+      "effects": {
+        "armor": 1
+      },
+      "desc": "+1 armor per stack"
+    },
+    "regen": {
+      "name": "Rapid Regrowth",
+      "effects": {
+        "regen": 0.008
+      },
+      "desc": "Regenerates 0.8% HP per second per stack"
+    },
+    "shimmer": {
+      "name": "Shimmer Skin",
+      "effects": {
+        "dodge": 0.07
+      },
+      "desc": "7% chance per stack to dodge a hit"
+    },
+    "acid": {
+      "name": "Acid Blood",
+      "effects": {
+        "death_acid": 22
+      },
+      "desc": "Bursts for 22 acid damage per stack when killed"
+    },
+    "brood": {
+      "name": "Brood Pouches",
+      "effects": {
+        "brood": 0.18
+      },
+      "desc": "18% chance per stack to release Skitters on death"
+    },
+    "spines": {
+      "name": "Spined Hide",
+      "effects": {
+        "reflect": 0.07
+      },
+      "desc": "Reflects 7% of damage taken per stack"
+    },
+    "longshot": {
+      "name": "Long Reach",
+      "effects": {
+        "range": 0.1
+      },
+      "desc": "+10% attack range per stack"
+    },
+    "fortified": {
+      "name": "Fortified Hives",
+      "effects": {
+        "hp": 0.25
+      },
+      "desc": "Alien buildings +25% HP per stack",
+      "target": "bld"
+    },
+    "venom": {
+      "name": "Venom Spines",
+      "effects": {
+        "damage": 0.25
+      },
+      "desc": "Spine Towers +25% damage per stack",
+      "target": "bld"
+    }
+  },
+  "strain_targets": {
+    "classes": [
+      "cls:inf",
+      "cls:veh",
+      "cls:air"
+    ],
+    "kinds": [
+      "kind:skitters",
+      "kind:spitters",
+      "kind:brutes",
+      "kind:gliders",
+      "kind:juggernaut",
+      "kind:grub",
+      "kind:bomber",
+      "kind:leeches",
+      "kind:cloakers",
+      "kind:burrowers",
+      "kind:menders",
+      "kind:titan",
+      "kind:carrier"
+    ],
+    "global_chance": 0.2
+  },
+  "adaptation": {
+    "per_battle": 1,
+    "resist": 0.05,
+    "names": {
+      "inf": "Infantry",
+      "veh": "Vehicles",
+      "air": "Aircraft",
+      "bld": "Towers & powers",
+      "hero": "Commander"
+    }
+  },
+  "cards": {
+    "ap_rounds": {
+      "type": "augment",
+      "rarity": "common",
+      "name": "Armor-Piercing Rounds",
+      "desc": "All units ignore 2 armor.",
+      "effects": {
+        "all:armor_pierce": 2
+      },
+      "counters": [
+        "plated"
+      ]
+    },
+    "incendiary": {
+      "type": "augment",
+      "rarity": "common",
+      "name": "Incendiary Payloads",
+      "desc": "Alien regeneration halved. Infantry +5% damage.",
+      "effects": {
+        "all:no_regen": 1,
+        "class:inf:damage": 1.05
+      },
+      "counters": [
+        "regen"
+      ]
+    },
+    "bio_scanners": {
+      "type": "augment",
+      "rarity": "common",
+      "name": "Bio-Scanners",
+      "desc": "Aliens dodge half as often.",
+      "effects": {
+        "all:accuracy": 0.5
+      },
+      "counters": [
+        "shimmer"
+      ]
+    },
+    "containment": {
+      "type": "augment",
+      "rarity": "rare",
+      "name": "Containment Foam",
+      "desc": "Killed aliens don't burst acid or release brood.",
+      "effects": {
+        "all:containment": 1
+      },
+      "counters": [
+        "acid",
+        "brood"
+      ]
+    },
+    "thorn_guard": {
+      "type": "augment",
+      "rarity": "common",
+      "name": "Ablative Shielding",
+      "desc": "Reflected damage cut by 70%.",
+      "effects": {
+        "all:reflect_guard": 0.7
+      },
+      "counters": [
+        "spines"
+      ]
+    },
+    "purge": {
+      "type": "augment",
+      "rarity": "rare",
+      "name": "Purge Protocol",
+      "desc": "+20% damage against mutated aliens.",
+      "effects": {
+        "all:vs_mutated": 1.2
+      }
+    },
+    "siege_doctrine": {
+      "type": "augment",
+      "rarity": "common",
+      "name": "Siege Doctrine",
+      "desc": "Towers +25% damage.",
+      "effects": {
+        "towers:damage": 1.25
+      },
+      "counters": [
+        "fortified"
+      ]
+    },
+    "kevlar": {
+      "type": "augment",
+      "rarity": "common",
+      "name": "Kevlar Weave",
+      "desc": "Infantry +20% HP.",
+      "effects": {
+        "class:inf:hp": 1.2
+      }
+    },
+    "composite": {
+      "type": "augment",
+      "rarity": "common",
+      "name": "Composite Armor",
+      "desc": "Vehicles +20% HP.",
+      "effects": {
+        "class:veh:hp": 1.2
+      }
+    },
+    "rotors": {
+      "type": "augment",
+      "rarity": "common",
+      "name": "Rapid Rotors",
+      "desc": "Aircraft +25% speed, +10% damage.",
+      "effects": {
+        "class:air:speed": 1.25,
+        "class:air:damage": 1.1
+      }
+    },
+    "optics": {
+      "type": "augment",
+      "rarity": "rare",
+      "name": "Overclocked Optics",
+      "desc": "All units +10% range.",
+      "effects": {
+        "all:range": 1.1
+      },
+      "counters": [
+        "longshot"
+      ]
+    },
+    "drill": {
+      "type": "augment",
+      "rarity": "rare",
+      "name": "Drill Sergeant",
+      "desc": "New units start at Rank 1.",
+      "effects": {
+        "all:start_rank": 1
+      }
+    },
+    "marine_vets": {
+      "type": "augment",
+      "rarity": "common",
+      "name": "Marine Veterans",
+      "desc": "Marines +30% damage.",
+      "effects": {
+        "unit:marines:damage": 1.3
+      }
+    },
+    "flame_gel": {
+      "type": "augment",
+      "rarity": "common",
+      "name": "Flame Gel",
+      "desc": "Flamers +35% damage.",
+      "effects": {
+        "unit:flamers:damage": 1.35
+      }
+    },
+    "heavy_barrel": {
+      "type": "augment",
+      "rarity": "common",
+      "name": "Heavy Barrels",
+      "desc": "Siege Tanks +25% damage, +10% range.",
+      "effects": {
+        "unit:tank:damage": 1.25,
+        "unit:tank:range": 1.1
+      }
+    },
+    "hardened_sockets": {
+      "type": "augment",
+      "rarity": "common",
+      "name": "Hardened Sockets",
+      "desc": "Towers +50% HP.",
+      "effects": {
+        "towers:hp": 1.5
+      }
+    },
+    "capacitors": {
+      "type": "augment",
+      "rarity": "rare",
+      "name": "Capacitor Banks",
+      "desc": "Leader powers recharge 25% faster.",
+      "effects": {
+        "powers:cooldown": 0.75
+      }
+    },
+    "logistics": {
+      "type": "augment",
+      "rarity": "common",
+      "name": "Logistics Net",
+      "desc": "+15% Supply income.",
+      "effects": {
+        "all:income": 1.15
+      }
+    },
+    "forward_supply": {
+      "type": "augment",
+      "rarity": "common",
+      "name": "Forward Supply",
+      "desc": "+200 Supplies at the start of every battle.",
+      "effects": {
+        "all:start_supplies": 200
+      }
+    },
+    "nano_armor": {
+      "type": "augment",
+      "rarity": "epic",
+      "name": "Nano-Armor",
+      "desc": "All units +15% HP and +10% damage.",
+      "effects": {
+        "all:hp": 1.15,
+        "all:damage": 1.1
+      }
+    },
+    "unlock_air": {
+      "type": "unlock",
+      "rarity": "common",
+      "name": "Airwing",
+      "desc": "Unlocks the Air Pad, Hornets and Sparrows.",
+      "buildings": [
+        "airpad"
+      ],
+      "units": [
+        "hornet",
+        "sparrow"
+      ]
+    },
+    "unlock_recon": {
+      "type": "unlock",
+      "rarity": "common",
+      "name": "Recon Division",
+      "desc": "Unlocks the Sensor Array and Sniper Teams.",
+      "buildings": [
+        "sensor"
+      ],
+      "units": [
+        "snipers"
+      ]
+    },
+    "unlock_rockets": {
+      "type": "unlock",
+      "rarity": "common",
+      "name": "Rocket Corps",
+      "desc": "Unlocks Rocket Troopers and Missile Trucks.",
+      "units": [
+        "rockets",
+        "aa"
+      ]
+    },
+    "unlock_medics": {
+      "type": "unlock",
+      "rarity": "common",
+      "name": "Medical Corps",
+      "desc": "Unlocks Field Medics.",
+      "units": [
+        "medics"
+      ]
+    },
+    "unlock_arty": {
+      "type": "unlock",
+      "rarity": "common",
+      "name": "Artillery Battery",
+      "desc": "Unlocks Rhino Artillery.",
+      "units": [
+        "artillery"
+      ]
+    },
+    "unlock_armory": {
+      "type": "unlock",
+      "rarity": "common",
+      "name": "Field Armory",
+      "desc": "Unlocks the Field Armory and its upgrades.",
+      "buildings": [
+        "armory"
+      ]
+    },
+    "unlock_shield": {
+      "type": "unlock",
+      "rarity": "rare",
+      "name": "Shield Tech",
+      "desc": "Unlocks the Shield Generator.",
+      "buildings": [
+        "shieldgen"
+      ]
+    },
+    "unlock_mantis": {
+      "type": "unlock",
+      "rarity": "rare",
+      "name": "Heavy Walkers",
+      "desc": "Unlocks the Mantis Walker (Tech 3).",
+      "units": [
+        "mantis"
+      ]
+    },
+    "unlock_specops": {
+      "type": "unlock",
+      "rarity": "epic",
+      "name": "Spec Ops",
+      "desc": "Unlocks the Spec Ops Center and Omega Commandos (Tech 3).",
+      "buildings": [
+        "specops"
+      ],
+      "units": [
+        "commandos"
+      ]
+    },
+    "unlock_gunship": {
+      "type": "unlock",
+      "rarity": "epic",
+      "name": "Gunship Wing",
+      "desc": "Unlocks Vulture Gunships (needs the Air Pad).",
+      "units": [
+        "gunship"
+      ]
+    },
+    "recruit_marines": {
+      "type": "recruit",
+      "rarity": "common",
+      "name": "Veteran Marines",
+      "desc": "A Rank 2 Marine squad joins your veterans.",
+      "unit": "marines",
+      "rank": 2
+    },
+    "recruit_tank": {
+      "type": "recruit",
+      "rarity": "common",
+      "name": "Veteran Tank Crew",
+      "desc": "A Rank 1 Siege Tank joins your veterans.",
+      "unit": "tank",
+      "rank": 1
+    },
+    "recruit_snipers": {
+      "type": "recruit",
+      "rarity": "rare",
+      "name": "Ghost Snipers",
+      "desc": "A Rank 2 Sniper Team joins your veterans.",
+      "unit": "snipers",
+      "rank": 2
+    },
+    "recruit_commandos": {
+      "type": "recruit",
+      "rarity": "epic",
+      "name": "Commando Detachment",
+      "desc": "A Rank 2 Commando squad joins your veterans.",
+      "unit": "commandos",
+      "rank": 2
+    },
+    "recruit_mantis": {
+      "type": "recruit",
+      "rarity": "epic",
+      "name": "Mantis Ace",
+      "desc": "A Rank 1 Mantis Walker joins your veterans.",
+      "unit": "mantis",
+      "rank": 1
+    },
+    "tower_card": {
+      "type": "tower",
+      "rarity": "common",
+      "name": "Tower Blueprint",
+      "desc": "Add a new tower to your loadout."
+    }
+  },
+  "relics": {
+    "black_box": {
+      "rarity": "rare",
+      "name": "Black Box",
+      "desc": "+2 veteran slots.",
+      "effects": {
+        "all:veteran_slots": 2
+      }
+    },
+    "nanite_medics": {
+      "rarity": "rare",
+      "name": "Nanite Medics",
+      "desc": "Veterans fully heal between battles.",
+      "effects": {
+        "all:free_heal": 1
+      }
+    },
+    "prefab_reactor": {
+      "rarity": "rare",
+      "name": "Prefab Reactor",
+      "desc": "Start every battle with an extra Reactor.",
+      "effects": {
+        "all:prefab_reactor": 1
+      }
+    },
+    "orbital_uplink": {
+      "rarity": "epic",
+      "name": "Orbital Uplink",
+      "desc": "Leader powers recharge 40% faster.",
+      "effects": {
+        "powers:cooldown": 0.6
+      }
+    },
+    "scrap_recycler": {
+      "rarity": "common",
+      "name": "Scrap Recycler",
+      "desc": "+50% Scrap from battles.",
+      "effects": {
+        "all:scrap_mult": 0.5
+      }
+    },
+    "mutagen_analyzer": {
+      "rarity": "rare",
+      "name": "Mutagen Analyzer",
+      "desc": "+15% damage vs mutated aliens. Shows the next act's new strains.",
+      "effects": {
+        "all:vs_mutated": 1.15
+      }
+    },
+    "adaptive_doctrine": {
+      "rarity": "rare",
+      "name": "Adaptive Doctrine",
+      "desc": "The swarm adapts to your tactics half as fast.",
+      "effects": {
+        "all:adapt_slow": 1
+      }
+    },
+    "reinforced_hq": {
+      "rarity": "common",
+      "name": "Command Reserve",
+      "desc": "+1 Command Integrity (and heal 1).",
+      "effects": {
+        "all:integrity": 1
+      }
+    },
+    "expanded_barracks": {
+      "rarity": "common",
+      "name": "Expanded Barracks",
+      "desc": "+10 population cap.",
+      "effects": {
+        "all:pop_cap": 10
+      }
+    },
+    "veteran_corps": {
+      "rarity": "epic",
+      "name": "Veteran Corps",
+      "desc": "New units start one rank higher.",
+      "effects": {
+        "all:start_rank": 1
+      }
+    },
+    "supply_cache": {
+      "rarity": "common",
+      "name": "Supply Cache",
+      "desc": "+250 Supplies at the start of every battle.",
+      "effects": {
+        "all:start_supplies": 250
+      }
+    },
+    "prefab_bunkers": {
+      "rarity": "common",
+      "name": "Prefab Bunkers",
+      "desc": "Start every battle with 2 Bunkers.",
+      "effects": {
+        "all:prefab_bunkers": 2
+      }
+    },
+    "war_machine": {
+      "rarity": "epic",
+      "name": "War Machine",
+      "desc": "Vehicles and aircraft +20% damage.",
+      "effects": {
+        "class:veh:damage": 1.2,
+        "class:air:damage": 1.2
+      }
+    },
+    "iron_will": {
+      "rarity": "rare",
+      "name": "Iron Will",
+      "desc": "Your Commander +60% HP and damage.",
+      "effects": {
+        "unit:commander:hp": 1.6,
+        "unit:commander:damage": 1.6
+      }
+    }
+  },
+  "rarity_weights": {
+    "common": 60,
+    "rare": 30,
+    "epic": 10
+  },
+  "card_choices": 3,
+  "rewards": {
+    "battle": [
+      30,
+      45
+    ],
+    "elite": [
+      60,
+      80
+    ],
+    "boss": [
+      110,
+      140
+    ]
+  },
+  "shop": {
+    "cards": 3,
+    "relics": 1,
+    "prices": {
+      "common": 45,
+      "rare": 75,
+      "epic": 120
+    },
+    "relic_price": 140,
+    "purge": 70,
+    "repair": 90
+  },
+  "rest": {
+    "promote": 1
+  },
+  "lab": {
+    "purge_free": 1,
+    "intel_cost": 0
+  },
+  "events": {
+    "crashed_dropship": {
+      "name": "Crashed Dropship",
+      "text": "A dropship went down in the hills. The crew is alive, but the hive is closing in.",
+      "options": [
+        {
+          "text": "Mount a rescue (a strain gains +1 stack)",
+          "effects": [
+            [
+              "recruit",
+              "marines",
+              1
+            ],
+            [
+              "recruit",
+              "rockets",
+              1
+            ],
+            [
+              "strain_up",
+              1
+            ]
+          ]
+        },
+        {
+          "text": "Salvage the wreck: +40 Scrap",
+          "effects": [
+            [
+              "scrap",
+              40
+            ]
+          ]
+        }
+      ]
+    },
+    "hive_sample": {
+      "name": "Living Sample",
+      "text": "Marrow wants to study a captured hive organ. It might teach us how they evolve.",
+      "options": [
+        {
+          "text": "Study it: remove 1 stack from the strongest strain, lose 1 Integrity",
+          "effects": [
+            [
+              "purge_top",
+              1
+            ],
+            [
+              "integrity",
+              -1
+            ]
+          ]
+        },
+        {
+          "text": "Burn it: +25 Scrap",
+          "effects": [
+            [
+              "scrap",
+              25
+            ]
+          ]
+        }
+      ]
+    },
+    "black_market": {
+      "name": "Black Market",
+      "text": "A smuggler offers prototype gear for scrap. No questions.",
+      "options": [
+        {
+          "text": "Buy a random rare augment (60 Scrap)",
+          "cost": 60,
+          "effects": [
+            [
+              "card",
+              "rare"
+            ]
+          ]
+        },
+        {
+          "text": "Walk away",
+          "effects": []
+        }
+      ]
+    },
+    "mutation_storm": {
+      "name": "Mutation Storm",
+      "text": "A spore cloud is drifting across the front. The swarm will feed on it either way.",
+      "options": [
+        {
+          "text": "Bomb it now: a strain gains +1 stack but you get a relic",
+          "effects": [
+            [
+              "strain_up",
+              1
+            ],
+            [
+              "relic",
+              "rare"
+            ]
+          ]
+        },
+        {
+          "text": "Evacuate: two strains gain +1 stack, +50 Scrap",
+          "effects": [
+            [
+              "strain_up",
+              2
+            ],
+            [
+              "scrap",
+              50
+            ]
+          ]
+        }
+      ]
+    },
+    "old_armory": {
+      "name": "Abandoned Armory",
+      "text": "A colony armory, untouched. Pick one crate.",
+      "options": [
+        {
+          "text": "Weapons crate: a random augment",
+          "effects": [
+            [
+              "card",
+              "common"
+            ]
+          ]
+        },
+        {
+          "text": "Blueprint crate: a random unlock",
+          "effects": [
+            [
+              "unlock",
+              "any"
+            ]
+          ]
+        },
+        {
+          "text": "Tower crate: a new tower blueprint",
+          "effects": [
+            [
+              "tower",
+              1
+            ]
+          ]
+        }
+      ]
+    },
+    "field_hospital": {
+      "name": "Field Hospital",
+      "text": "A medical frigate is in orbit for one more hour.",
+      "options": [
+        {
+          "text": "Patch up: +1 Integrity",
+          "effects": [
+            [
+              "integrity",
+              1
+            ]
+          ]
+        },
+        {
+          "text": "Train: every veteran gains a rank",
+          "effects": [
+            [
+              "promote",
+              1
+            ]
+          ]
+        }
+      ]
+    },
+    "deserters": {
+      "name": "Deserters",
+      "text": "A squad from another unit wants to join you. Their commander wants them back.",
+      "options": [
+        {
+          "text": "Take them in (Rank 1 Flamers, -20 Scrap)",
+          "cost": 20,
+          "effects": [
+            [
+              "recruit",
+              "flamers",
+              1
+            ]
+          ]
+        },
+        {
+          "text": "Send them back: +30 Scrap",
+          "effects": [
+            [
+              "scrap",
+              30
+            ]
+          ]
+        }
+      ]
+    }
+  },
+  "salvage": {
+    "node": 4,
+    "elite": 10,
+    "boss": 25,
+    "victory": 60
+  },
+  "_tech_comment": "Command Tech Lab (scenes/run_scenes.py TechLabScene, COMMAND tab): permanent upgrades for the RTS Siege Run, bought with Salvage. 'mods' are Sim run_mod keys (multipliers multiply per rank, 'additive' stats add per rank); 'run' values add per rank to run-level settings.",
+  "tech": {
+    "field_command": {
+      "name": "Field Command",
+      "desc": "+1 Command Integrity per rank",
+      "costs": [
+        120,
+        260
+      ],
+      "run": {
+        "integrity": 1
+      }
+    },
+    "logistics": {
+      "name": "Logistics Corps",
+      "desc": "+100 Supplies at the start of every battle per rank",
+      "costs": [
+        30,
+        60,
+        100,
+        150
+      ],
+      "mods": {
+        "all:start_supplies": 100
+      }
+    },
+    "veteran_cadre": {
+      "name": "Veteran Cadre",
+      "desc": "+1 veteran slot per rank",
+      "costs": [
+        80,
+        180
+      ],
+      "mods": {
+        "all:veteran_slots": 1
+      }
+    },
+    "scavengers": {
+      "name": "Scavengers",
+      "desc": "+15% Scrap from battles per rank",
+      "costs": [
+        40,
+        80,
+        130
+      ],
+      "mods": {
+        "all:scrap_mult": 0.15
+      }
+    },
+    "requisition": {
+      "name": "Requisition",
+      "desc": "Start runs with 40 Scrap per rank",
+      "costs": [
+        30,
+        60,
+        100
+      ],
+      "run": {
+        "start_scrap": 40
+      }
+    },
+    "wider_draft": {
+      "name": "Wider Draft",
+      "desc": "Card rewards offer 1 more choice per rank",
+      "costs": [
+        140,
+        320
+      ],
+      "run": {
+        "card_choices": 1
+      }
+    },
+    "lucky_find": {
+      "name": "Lucky Find",
+      "desc": "Better rare / epic odds on cards per rank",
+      "costs": [
+        60,
+        120,
+        200
+      ],
+      "run": {
+        "rarity_luck": 0.25
+      }
+    },
+    "trade_network": {
+      "name": "Trade Network",
+      "desc": "Depot prices -10% per rank",
+      "costs": [
+        50,
+        100,
+        160
+      ],
+      "run": {
+        "shop_discount": 0.1
+      }
+    },
+    "black_box_data": {
+      "name": "Black Box Data",
+      "desc": "+10% Salvage per rank",
+      "costs": [
+        70,
+        140,
+        220
+      ],
+      "run": {
+        "salvage": 0.1
+      }
+    },
+    "combat_doctrine": {
+      "name": "Combat Doctrine",
+      "desc": "All units +5% damage per rank",
+      "costs": [
+        60,
+        120,
+        200
+      ],
+      "mods": {
+        "all:damage": 1.05
+      }
+    },
+    "hardened_kit": {
+      "name": "Hardened Kit",
+      "desc": "All units +5% HP per rank",
+      "costs": [
+        60,
+        120,
+        200
+      ],
+      "mods": {
+        "all:hp": 1.05
+      }
+    },
+    "turret_eng": {
+      "name": "Turret Engineering",
+      "desc": "Towers +8% damage and HP per rank",
+      "costs": [
+        50,
+        100,
+        170
+      ],
+      "mods": {
+        "towers:damage": 1.08,
+        "towers:hp": 1.08
+      }
+    },
+    "orbital_priority": {
+      "name": "Orbital Priority",
+      "desc": "Leader powers recharge 8% faster per rank",
+      "costs": [
+        50,
+        100,
+        160
+      ],
+      "mods": {
+        "powers:cooldown": 0.92
+      }
+    },
+    "field_arsenal": {
+      "name": "Field Arsenal",
+      "desc": "Start runs with 1 extra tower blueprint per rank",
+      "costs": [
+        80,
+        200
+      ],
+      "run": {
+        "start_towers": 1
+      }
+    },
+    "adv_blueprints": {
+      "name": "Advanced Blueprints",
+      "desc": "Start runs with a random unlock card per rank",
+      "costs": [
+        90,
+        220
+      ],
+      "run": {
+        "start_unlocks": 1
+      }
+    },
+    "gene_research": {
+      "name": "Gene Research",
+      "desc": "Purge 1 strain stack at the start of every act per rank",
+      "costs": [
+        150,
+        330
+      ],
+      "run": {
+        "act_purge": 1
+      }
+    },
+    "signal_jamming": {
+      "name": "Signal Jamming",
+      "desc": "The swarm adapts to your tactics half as often",
+      "costs": [
+        220
+      ],
+      "mods": {
+        "all:adapt_slow": 1
+      }
+    },
+    "commander_training": {
+      "name": "Commander Training",
+      "desc": "Your Commander +20% HP and damage per rank",
+      "costs": [
+        40,
+        80,
+        130
+      ],
+      "mods": {
+        "unit:commander:hp": 1.2,
+        "unit:commander:damage": 1.2
+      }
+    },
+    "prefab_reactor": {
+      "name": "Prefab Reactor",
+      "desc": "Start every battle with an extra Reactor",
+      "costs": [
+        250
+      ],
+      "mods": {
+        "all:prefab_reactor": 1
+      }
+    },
+    "rapid_deploy": {
+      "name": "Rapid Deployment",
+      "desc": "New units start at Rank 1",
+      "costs": [
+        320
+      ],
+      "mods": {
+        "all:start_rank": 1
+      }
+    }
+  },
+  "_bosses_comment": "Act bosses (game/rts/boss.py). gates = Gate Hives that shield the boss; hp_mult x unit hp; shield = damage blocked while gates stand (1 = immune); attacks / cooldowns = signature moves; enrage = HP ratio; march = walks on your base during the gate phase; heart = Seed Heart phase after the boss dies; army / income / supplies_bonus = the bigger force you start with; lines = radio by event."
+}
