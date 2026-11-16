@@ -32,7 +32,7 @@ namespace Outpost.Sim
     /// detection.
     /// Everything runs in game pixels and seconds; the view layer only reads it.
     /// </summary>
-    public class Battle
+    public partial class Battle
     {
         public readonly MapData map;
         public readonly NavGrid grid;
@@ -74,6 +74,7 @@ namespace Outpost.Sim
             var st = GameData.Rts["start"];
             foreach (var n in new[] { "player", "alien" })
                 factions[n] = new Faction { name = n, res = GameData.F(st, n == "player" ? "supplies" : "biomass", 500) };
+            SetupMapControl();
             hw = Mathf.CeilToInt(grid.PxW / Cell) + 1;
             hh = Mathf.CeilToInt(grid.PxH / Cell) + 1;
             cells = new List<Entity>[hw * hh];
@@ -416,10 +417,10 @@ namespace Outpost.Sim
             }
         }
 
-        public Unit SpawnUnit(string kind, string faction, float x, float y)
+        public Unit SpawnUnit(string kind, string faction, float x, float y, string model = null)
         {
             var mods = UnitMods(faction, kind);
-            var u = new Unit(kind, faction, x, y, mods.hp);
+            var u = new Unit(kind, faction, x, y, mods.hp) { model = model };
             u.speed *= mods.spd;
             u.range *= mods.rng;
             var owner = factions[faction];
@@ -464,7 +465,7 @@ namespace Outpost.Sim
                 if (done.Contains("weapons2")) dmg *= 1.15f;
                 if ((kind == "commandos" || kind == "snipers") && done.Contains("jump_jets")) spd *= 1.2f;
             }
-            else
+            else if (faction == "alien")
             {
                 // aliens evolve with tech level instead of research
                 int tech = factions[faction].tech;
@@ -705,6 +706,7 @@ namespace Outpost.Sim
             }
             detectT -= dt;
             if (detectT <= 0) { detectT = 0.25f; UpdateDetection(); }
+            UpdateMapControl(dt);
             for (int i = 0; i < buildings.Count; i++) if (buildings[i].alive) UpdateBuilding(buildings[i], dt);
             for (int i = 0; i < towers.Count; i++) if (towers[i].alive) UpdateTower(towers[i], dt);
             for (int i = 0; i < units.Count; i++) if (units[i].alive) UpdateUnit(units[i], dt);
@@ -724,6 +726,7 @@ namespace Outpost.Sim
             {
                 float inc = 0;
                 foreach (var b in buildings) if (b.alive && b.faction == f.name) inc += b.Income;
+                inc += RelayIncome(f.name);
                 f.income = inc * f.incomeMult;
                 f.res += f.income * dt;
                 // fallen heroes come back at the first base (the Queen only once the Swarm has Tech 3)
@@ -936,6 +939,7 @@ namespace Outpost.Sim
                 grid.BlockCircle(b.x, b.y, b.IsHq ? 44 : 26, -1);
                 if (b.IsHq)
                 {
+                    if (b.faction == "player") fx?.Message("alien", "We lost a base!");
                     // the base falls with its core
                     foreach (var s in b.baseRef.slots) if (s != null && s.alive) Kill(s, src);
                     foreach (var s in b.baseRef.sockets) if (s != null && s.alive) Kill(s, src);
@@ -1181,6 +1185,13 @@ namespace Outpost.Sim
                     u.dash = null;
                     u.guard = u.Pos;
                 }
+                u.lastPos = u.Pos;
+                return;
+            }
+
+            if (Leashed(u, dt))
+            {
+                FollowPath(u, dt);
                 u.lastPos = u.Pos;
                 return;
             }

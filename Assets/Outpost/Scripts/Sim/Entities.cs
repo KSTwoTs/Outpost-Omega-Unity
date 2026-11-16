@@ -79,6 +79,8 @@ namespace Outpost.Sim
         public readonly Dictionary<string, float> buffs = new Dictionary<string, float>();   // name -> seconds left
         public Dash dash;
         public Vector2? burrowTo;
+        public Vector3? leash;                  // wild nest guards: (x, y, radius) they stay inside
+        public string model;                    // a different model than the unit's own (wild nests)
 
         // support and stealth
         public bool stealth;                    // permanently cloaked (Cloakers)
@@ -335,6 +337,23 @@ namespace Outpost.Sim
         public bool hitsAir, lob, pierce;
         public JObject bonus;
         public object view;
+    }
+
+    /// <summary>A relay on the map. Units standing on it capture it for their side.</summary>
+    public class Relay
+    {
+        public float x, y;
+        public string owner;             // null, "player" or "alien"
+        public float progress;           // -1..1: alien <- 0 -> player
+        public bool contested;
+    }
+
+    /// <summary>A supply crate lying on the map: the first unit to reach it takes its value.</summary>
+    public class Crate
+    {
+        public float x, y;
+        public int value;
+        public bool alive = true;
     }
 
     /// <summary>A spot the player's Sensor Array is scanning: reveals cloaked units there for a while.</summary>

@@ -13,6 +13,7 @@ namespace Outpost.View
         public Battle battle;
         public CommandInput input;
         public Camera cam;
+        public Outpost.Content.MapData map;
 
         GUIStyle small;
 
@@ -29,6 +30,7 @@ namespace Outpost.View
             if (battle == null || input == null || cam == null || Event.current.type != EventType.Repaint) return;
             if (small == null) small = new GUIStyle(GUI.skin.label) { fontSize = 12 };
             HealthBars();
+            RelayBars();
             DragBox();
         }
 
@@ -63,6 +65,23 @@ namespace Outpost.View
                     Fill(new Rect(r.x, r.yMax + 2, r.width, 3), new Color(0, 0, 0, 0.7f));
                     Fill(new Rect(r.x, r.yMax + 2, r.width * work, 3), building ? new Color(0.4f, 0.8f, 1f) : new Color(1f, 0.85f, 0.3f));
                 }
+            }
+        }
+
+        /// <summary>A capture bar over every relay that is being taken or fought over.</summary>
+        void RelayBars()
+        {
+            if (map == null) return;
+            foreach (var r in battle.relays)
+            {
+                float k = Mathf.Abs(r.progress);
+                if ((k <= 0.001f || k >= 0.999f) && !r.contested) continue;
+                var sp = cam.WorldToScreenPoint(Outpost.Content.MapBuilder.Ground(map, r.x, r.y) + Vector3.up * 4f);
+                if (sp.z <= 0) continue;
+                var bar = new Rect(sp.x - 30, Screen.height - sp.y, 60, 6);
+                Fill(new Rect(bar.x - 1, bar.y - 1, bar.width + 2, bar.height + 2), new Color(0, 0, 0, 0.7f));
+                Fill(new Rect(bar.x, bar.y, bar.width * k, bar.height),
+                    r.contested ? new Color(1f, 0.85f, 0.3f) : r.progress > 0 ? new Color(0.4f, 0.85f, 1f) : new Color(1f, 0.45f, 0.9f));
             }
         }
 

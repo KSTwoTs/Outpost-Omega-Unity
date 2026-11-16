@@ -43,7 +43,7 @@ namespace Outpost.View
         /// <summary>The exported model that shows this entity (also used for HUD portraits).</summary>
         public static string ModelNameFor(Entity e)
         {
-            if (e is Unit) return e.kind;
+            if (e is Unit mu) return mu.model ?? e.kind;
             if (e is Tower) return e.kind == "spine" ? "bld_spine" : "tur_" + e.kind;
             if (e is Building b && b.IsHq) return b.kind == "hq" ? "bld_hq2" : "bld_hive2";
             return "bld_" + e.kind;

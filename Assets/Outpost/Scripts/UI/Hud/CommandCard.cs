@@ -63,6 +63,32 @@ namespace Outpost.UI
         {
             var list = new List<Cmd>();
             var P = battle.Player;
+            var site = sel.Count == 0 ? input.selectedSite : null;
+            if (site != null)
+            {
+                signature = "site:" + site.id;
+                int cost = battle.ExpansionCost("player");
+                list.Add(new Cmd
+                {
+                    id = "expand", label = "Build base", model = "bld_hq2",
+                    tip = $"<b>Build a new base here</b>   {cost} Supplies\nNeeds your units nearby and no enemies around the pad. " +
+                          "A base adds building slots, turret sockets and +10 population.",
+                    enabled = () => battle.CanExpand("player", site) == null,
+                    sub = () =>
+                    {
+                        string why = battle.CanExpand("player", site);
+                        return why == null || why.StartsWith("Not enough") ? cost.ToString()
+                            : why.StartsWith("Clear") ? "enemies near" : why.StartsWith("Need") ? "bring units" : "taken";
+                    },
+                    click = () =>
+                    {
+                        string err = battle.Expand("player", site);
+                        Report(err);
+                        if (err == null) input.selectedSite = null;
+                    },
+                });
+                return list;
+            }
             var units = sel.OfType<Unit>().Where(u => u.faction == "player").ToList();
             if (units.Count > 0)
             {
@@ -113,6 +139,14 @@ namespace Outpost.UI
             signature = "";
             if (sel.Count != 1 || !(sel[0] is Building b) || b.faction != "player") return list;
             signature = $"b:{b.id}:{b.Done}:{b.upgraded}";
+            if (!b.IsHq)
+                list.Add(new Cmd
+                {
+                    id = "recycle", label = "Recycle", key = "Del",
+                    tip = "<b>Recycle</b>\nRemoves this building and frees its slot. You get half its cost back, or all of it while it is still being built.",
+                    sub = () => "+" + Mathf.RoundToInt(battle.BuildCost(b.kind) * (b.Done ? 0.5f : 1f)),
+                    click = () => Report(battle.Demolish(b)),
+                });
             if (!b.Done) return list;
 
             if (b.IsHq)

@@ -37,7 +37,16 @@ namespace Outpost.Sim
         float fund;                      // savings carried from one think to the next
         float thinkT = 2f;
         bool queenCalled;
+        readonly float expandAt;
         readonly HashSet<int> attackers = new HashSet<int>();
+        readonly HashSet<int> raiders = new HashSet<int>();          // units sent to take relays
+        readonly HashSet<int> escorts = new HashSet<int>();          // units holding the next expansion site
+
+        // what each new expansion grows, in the order the Swarm claims them
+        static readonly string[][] ExpansionOrders =
+        {
+            new[] { "pool", "node", "den", "nest" }, new[] { "pool", "cradle", "pool", "spire" }, new[] { "pool", "nest", "pool", "pit" },
+        };
 
         public AlienAI(Battle b, string difficulty = "Normal")
         {
@@ -50,7 +59,11 @@ namespace Outpost.Sim
             battle.alienArmyMult = armyMult;
             attackEvery = GameData.F(d, "attack_every", 120);
             nextAttack = GameData.F(d, "first_attack", 220);
+            expandAt = GameData.F(d, "expand_at", 270);
         }
+
+        /// <summary>The Swarm's living bases, the oldest (its main Hive) first.</summary>
+        List<Base> Bases() => battle.bases.Where(b => b.faction == "alien" && b.Alive).ToList();
 
         Base Home => battle.bases.FirstOrDefault(b => b.faction == "alien" && b.Alive);
 
@@ -63,7 +76,7 @@ namespace Outpost.Sim
             {
                 if (!b.Alive || b.faction != "player") continue;
                 float score = Vector2.Distance(new Vector2(b.x, b.y), new Vector2(home.x, home.y))
-                              + b.sockets.Count(t => t != null) * 250;
+                              + b.sockets.Count(t => t != null) * 250 - (b.site.main == null ? 600 : 0);   // expansions are softer
                 if (score < bs) { bs = score; best = b; }
             }
             return best;
@@ -79,17 +92,20 @@ namespace Outpost.Sim
             thinkT -= dt;
             if (thinkT > 0) return;
             thinkT = 1f;
-            var home = Home;
-            if (home == null) return;
+            var bases = Bases();
+            if (bases.Count == 0) return;
+            var home = bases[0];
             var f = battle.Alien;
             var army = Army();
-            bool threat = battle.units.Any(u => u.alive && u.faction == "player" &&
-                                                (u.Pos - new Vector2(home.x, home.y)).sqrMagnitude < 450 * 450);
-            Economy(home, f, army, threat);
+            bool threat = bases.Any(bs => battle.units.Any(u => u.alive && u.faction == "player" &&
+                                                                (u.Pos - new Vector2(bs.x, bs.y)).sqrMagnitude < 450 * 450));
+            Economy(bases, f, army, threat);
             Produce(f, army, threat);
             Research(f);
-            Defend(home, army);
+            Defend(bases, army);
             ManageArmy(home, f, army);
+            Relays(home, army);
+            Escort(bases, army);
             if (f.tech >= 3 && !queenCalled && f.hero == null)
             {
                 queenCalled = true;
@@ -98,51 +114,77 @@ namespace Outpost.Sim
         }
 
         // ------------------------------------------------------------------ economy
-        /// <summary>The next building the base wants from the build order (null when the plan is complete).</summary>
-        string NextBuilding(Base home)
+        /// <summary>The next building a base wants from its plan (null when the plan is complete or blocked).</summary>
+        string NextBuilding(Base bs, string[] plan, bool main)
         {
-            var have = home.slots.Take(home.SlotLimit).Where(s => s != null).Select(s => s.kind).ToList();
+            var have = bs.slots.Take(bs.SlotLimit).Where(s => s != null).Select(s => s.kind).ToList();
             var counts = new Dictionary<string, int>();
-            foreach (var k in buildOrder)
+            foreach (var k in plan)
             {
                 counts.TryGetValue(k, out int n);
                 counts[k] = ++n;
-                if (have.Count(h => h == k) < n) return GameData.Building(k) != null ? k : null;
+                if (have.Count(h => h == k) >= n) continue;
+                if (GameData.Building(k) == null) return null;
+                // a third Synapse Node is never needed: move on to the rest of the plan
+                if (k == "node" && battle.buildings.Count(b => b.alive && b.faction == "alien" && b.kind == "node") >= 2) continue;
+                return battle.Alien.tech >= battle.BuildTech(k) ? k : null;       // wait for the tech it needs
             }
-            // spare slots after the plan: stealth breeds, then more income
-            if (GameData.Building("den") != null && !have.Contains("den")) return "den";
+            if (!main) return null;
+            // spare slots in the main Hive after the plan: stealth breeds, then more income
+            if (GameData.Building("den") != null && !have.Contains("den") && battle.Alien.tech >= battle.BuildTech("den")) return "den";
             return "pool";
         }
+
+        /// <summary>Is it time for another Hive? The first at the difficulty's expand_at, then one every four minutes, up to four bases.</summary>
+        bool ExpansionDue(List<Base> bases)
+        {
+            if (battle.time < expandAt || bases.Count >= 4) return false;
+            return bases.Count < 2 || battle.time >= expandAt + 240 * (bases.Count - 1);
+        }
+
+        /// <summary>The free site the Swarm wants next: the one nearest its main Hive.</summary>
+        Outpost.Content.MapData.SiteData NextSite(Base home) =>
+            battle.FreeSites().OrderBy(s => (new Vector2(s.x, s.y) - new Vector2(home.x, home.y)).sqrMagnitude).FirstOrDefault();
 
         /// <summary>
         /// Buys the next thing on the list, or puts a share of income aside for it (more for things that
         /// raise income, since they pay for themselves). Saving only starts once there is a guard force,
-        /// and the savings are spent on defense while the base is under attack.
+        /// and the savings are spent on defense while a base is under attack.
         /// </summary>
-        void Economy(Base home, Faction f, List<Unit> army, bool threat)
+        void Economy(List<Base> bases, Faction f, List<Unit> army, bool threat)
         {
             reserve = 0;
             saving = null;
-            if (!home.hq.Done) return;
-            int built = home.slots.Count(s => s != null);
-            int spines = home.sockets.Count(t => t != null);
+            var home = bases[0];
             int wantSpines = battle.time > 600 ? 4 : 2;
-            bool spineOk = battle.time >= 150 && battle.FreeSocket(home) >= 0;
-            string want = battle.FreeSlot(home) >= 0 ? NextBuilding(home) : null;
-            if (want != null && f.tech < battle.BuildTech(want)) want = null;
-            if (want == "node" && battle.buildings.Count(b => b.alive && b.faction == "alien" && b.kind == "node") >= 2) want = null;
+            bool spineTime = battle.time >= 150;
 
-            // the shopping list, in priority order: (name, cost, guard force needed before saving for it)
-            var goals = new List<(string id, int cost, int guard)>();
-            if (spineOk && spines == 0 && built >= 3) goals.Add(("spine", battle.TowerCost("spine"), 5));
-            if (want != null) goals.Add((want, battle.BuildCost(want), Mathf.Min(2 + built, 8)));
+            // the shopping list, in priority order: (name, cost, guard force needed before saving for it, how to buy it)
+            var goals = new List<(string id, int cost, int guard, System.Func<bool> buy)>();
+            var later = new List<(string id, int cost, int guard, System.Func<bool> buy)>();
+            for (int i = 0; i < bases.Count; i++)
+            {
+                var bs = bases[i];
+                if (!bs.hq.Done) continue;
+                bool main = i == 0;
+                int built = bs.slots.Count(s => s != null);
+                int spines = bs.sockets.Count(t => t != null);
+                bool socket = spineTime && battle.FreeSocket(bs) >= 0;
+                if (socket && spines == 0 && built >= 3) goals.Add(("spine", battle.TowerCost("spine"), 5, () => battle.BuildTower(bs, "spine") == null));
+                string want = battle.FreeSlot(bs) >= 0 ? NextBuilding(bs, main ? buildOrder : ExpansionOrders[(i - 1) % ExpansionOrders.Length], main) : null;
+                if (want != null) goals.Add((want, battle.BuildCost(want), main ? Mathf.Min(2 + built, 8) : 5, () => battle.Build(bs, want) == null));
+                if (socket && spines < wantSpines) later.Add(("spine", battle.TowerCost("spine"), 8, () => battle.BuildTower(bs, "spine") == null));
+            }
+            var site = ExpansionDue(bases) ? NextSite(home) : null;
+            if (site != null) goals.Add(("expand", battle.ExpansionCost("alien"), 6, () => battle.Expand("alien", site) == null));
             var pool = battle.buildings.FirstOrDefault(b => b.alive && b.faction == "alien" && b.kind == "pool" && b.Done &&
                                                             !b.upgraded && !b.Upgrading && b.Upgrade != null);
-            if (pool != null && built >= 4) goals.Add(("pool_upgrade", GameData.I(pool.Upgrade, "cost", 220), 6));
-            if (spineOk && spines < wantSpines) goals.Add(("spine", battle.TowerCost("spine"), 8));
+            if (pool != null && home.slots.Count(s => s != null) >= 4)
+                goals.Add(("pool_upgrade", GameData.I(pool.Upgrade, "cost", 220), 6, () => battle.QueueUpgrade(pool) == null));
+            goals.AddRange(later);
             var hq = home.hq;
-            if (!hq.upgraded && !hq.Upgrading && hq.Upgrade != null && f.tech >= GameData.I(hq.Upgrade, "tech", 2) && battle.time > 200)
-                goals.Add(("hq_upgrade", GameData.I(hq.Upgrade, "cost", 600), 6));
+            if (hq.Done && !hq.upgraded && !hq.Upgrading && hq.Upgrade != null && f.tech >= GameData.I(hq.Upgrade, "tech", 2) && battle.time > 200)
+                goals.Add(("hq_upgrade", GameData.I(hq.Upgrade, "cost", 600), 6, () => battle.QueueUpgrade(hq) == null));
             if (goals.Count == 0)
             {
                 fund = 0;
@@ -152,15 +194,13 @@ namespace Outpost.Sim
             var g = goals[0];
             if (f.res >= g.cost)
             {
-                if (g.id == "spine") battle.BuildTower(home, "spine");
-                else if (g.id == "hq_upgrade") battle.QueueUpgrade(hq);
-                else if (g.id == "pool_upgrade") battle.QueueUpgrade(pool);
-                else battle.Build(home, g.id);
-                fund = 0;
+                // an expansion can be affordable and still blocked (wild nest, no escort there yet): keep the money for it
+                if (g.buy()) fund = 0;
+                else if (g.id == "expand") { reserve = Mathf.Min(g.cost, f.res); saving = g.id; }
                 return;
             }
             if (threat || army.Count < g.guard) return;      // the fund stays, but everything is spendable
-            bool pays = g.id == "pool" || g.id == "pool_upgrade";
+            bool pays = g.id == "pool" || g.id == "pool_upgrade" || g.id == "expand";
             fund = Mathf.Min(Mathf.Min(fund + f.income * (pays ? 0.75f : 0.45f), g.cost), f.res);
             reserve = fund;
             saving = g.id;
@@ -254,27 +294,71 @@ namespace Outpost.Sim
         static int Cost(string unit) => GameData.I(GameData.Unit(unit), "cost", 100);
 
         // ------------------------------------------------------------------ army
-        void Defend(Base home, List<Unit> army)
+        void Defend(List<Base> bases, List<Unit> army)
         {
-            float tx = 0, ty = 0;
-            int n = 0;
-            foreach (var u in battle.units)
-                if (u.alive && u.faction == "player" && (u.Pos - new Vector2(home.x, home.y)).sqrMagnitude < 420 * 420)
-                {
-                    tx += u.x;
-                    ty += u.y;
-                    n++;
-                }
-            if (n == 0) return;
-            var near = army.Where(u => !attackers.Contains(u.id) && (u.target == null || u.order != Order.Attack) &&
-                                       (u.Pos - new Vector2(home.x, home.y)).sqrMagnitude < 1400 * 1400).ToList();
-            if (near.Count > 0) battle.OrderMove(near, new Vector2(tx / n, ty / n), true);
+            foreach (var bs in bases)
+            {
+                var at = new Vector2(bs.x, bs.y);
+                float tx = 0, ty = 0;
+                int n = 0;
+                foreach (var u in battle.units)
+                    if (u.alive && u.faction == "player" && (u.Pos - at).sqrMagnitude < 420 * 420)
+                    {
+                        tx += u.x;
+                        ty += u.y;
+                        n++;
+                    }
+                if (n == 0) continue;
+                var near = army.Where(u => !attackers.Contains(u.id) && (u.target == null || u.order != Order.Attack) &&
+                                           (u.Pos - at).sqrMagnitude < 1400 * 1400).ToList();
+                if (near.Count > 0) battle.OrderMove(near, new Vector2(tx / n, ty / n), true);
+                return;
+            }
+        }
+
+        /// <summary>Keeps up to two light units out taking relays the Swarm doesn't hold.</summary>
+        void Relays(Base home, List<Unit> army)
+        {
+            if (battle.time < 60) return;
+            raiders.RemoveWhere(id => !army.Any(u => u.id == id));
+            if (raiders.Count >= 2) return;
+            var hp = new Vector2(home.x, home.y);
+            var relay = battle.relays.Where(r => r.owner != "alien")
+                .OrderBy(r => (new Vector2(r.x, r.y) - hp).sqrMagnitude).FirstOrDefault();
+            if (relay == null) return;
+            var at = new Vector2(relay.x, relay.y);
+            var scout = army.Where(u => !attackers.Contains(u.id) && !raiders.Contains(u.id) && u.order == Order.None &&
+                                        (u.cls == "inf" || u.cls == "air"))
+                .OrderBy(u => (u.Pos - at).sqrMagnitude).FirstOrDefault();
+            if (scout == null) return;
+            battle.OrderMove(new[] { scout }, at, true);
+            raiders.Add(scout.id);
+        }
+
+        /// <summary>When a new Hive is due, part of the army goes to clear and hold the site (wild nests guard some).</summary>
+        void Escort(List<Base> bases, List<Unit> army)
+        {
+            var site = ExpansionDue(bases) ? NextSite(bases[0]) : null;
+            if (site == null)
+            {
+                escorts.Clear();              // nothing to hold: they rejoin the army
+                return;
+            }
+            escorts.RemoveWhere(id => !army.Any(u => u.id == id));
+            var at = new Vector2(site.x, site.y);
+            if (escorts.Count < 3)
+                foreach (var u in army.Where(u => !attackers.Contains(u.id) && !raiders.Contains(u.id) && !escorts.Contains(u.id))
+                             .OrderBy(u => (u.Pos - at).sqrMagnitude).Take(4 - escorts.Count))
+                    escorts.Add(u.id);
+            var away = army.Where(u => escorts.Contains(u.id) && u.order == Order.None && u.target == null &&
+                                       (u.Pos - at).sqrMagnitude > 300 * 300).ToList();
+            if (away.Count > 0) battle.OrderMove(away, at, true);
         }
 
         void ManageArmy(Base home, Faction f, List<Unit> army)
         {
             attackers.RemoveWhere(id => !army.Any(u => u.id == id));
-            var idle = army.Where(u => !attackers.Contains(u.id)).ToList();
+            var idle = army.Where(u => !attackers.Contains(u.id) && !raiders.Contains(u.id) && !escorts.Contains(u.id)).ToList();
             var target = TargetBase(home);
             var hp = new Vector2(home.x, home.y);
             var rally = target != null ? hp + (new Vector2(target.x, target.y) - hp).normalized * 300 : hp;

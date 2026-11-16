@@ -30,29 +30,18 @@ namespace Outpost.EditorTools
             Random.InitState(seed);
             var map = MapBuilder.Load(mapId);
             var b = new Battle(map);
-            Base home = null, hive = null;
-            foreach (var s in map.sites)
-            {
-                if (s.main == "player") home = b.FoundBase(s, "player", true);
-                else if (s.main == "alien") hive = b.FoundBase(s, "alien", true);
-            }
+            b.StandardStart(difficulty);
+            var home = b.bases.FirstOrDefault(x => x.faction == "player");
+            var hive = b.bases.FirstOrDefault(x => x.faction == "alien");
             if (home == null || hive == null) return $"{mapId}: no start sites";
-            b.ai = new AlienAI(b, difficulty);
             var hp = new Vector2(home.x, home.y);
             var ap = new Vector2(hive.x, hive.y);
             var dir = (ap - hp).normalized;
-            var st = GameData.Rts["start"];
-            int n = 0;
-            foreach (var k in GameData.List(st, "player_units").Append("commander"))
-                b.SpawnUnit(k, "player", hp.x + dir.x * 230 + 40 * n++, hp.y + dir.y * 230);
-            n = 0;
-            foreach (var k in GameData.List(st, "alien_units"))
-                b.SpawnUnit(k, "alien", ap.x - dir.x * 230 + 40 * n++, ap.y - dir.y * 230);
 
             sb.AppendLine($"== {mapId}, {difficulty}, {player} player, seed {seed}");
             var sw = System.Diagnostics.Stopwatch.StartNew();
-            string[] order = player == "efficient" ? new[] { "barracks", "supply", "supply", "reactor", "depot" }
-                : player == "casual" ? new[] { "barracks", "supply" } : new string[0];
+            string[] order = player == "efficient" ? new[] { "barracks", "supply", "reactor", "depot" }
+                : player == "casual" ? new[] { "barracks" } : new string[0];
             int oi = 0, lastWave = 0, lastLog = -1, heroDeaths = 0;
             int buys = 0;
             string wantBar = null;
@@ -69,6 +58,7 @@ namespace Outpost.EditorTools
                 next = b.time + (player == "efficient" ? 1f : 4f);
                 var P = b.Player;
                 var army = b.units.Where(u => u.alive && u.faction == "player").ToList();
+                MapData.SiteData expandSite = null;
 
                 if (player != "idle")
                 {
@@ -77,6 +67,21 @@ namespace Outpost.EditorTools
                         b.BuildTower(home, "pulse");
                     // the efficient player holds back on units while it saves for its next building
                     bool saving = player == "efficient" && oi < order.Length && army.Count >= 3 + oi;
+                    if (player == "efficient" && oi >= order.Length)
+                    {
+                        // a good player expands: up to three bases, each filled with Supply Pads first
+                        var mine = b.bases.Where(x => x.Alive && x.faction == "player").ToList();
+                        foreach (var bs in mine)
+                        {
+                            if (bs == home || !bs.hq.Done || bs.slots.Count(x => x != null && x.kind == "supply") >= 3 || b.FreeSlot(bs) < 0) continue;
+                            if (b.Build(bs, "supply") != null && army.Count >= 6) saving = true;
+                            break;
+                        }
+                        expandSite = b.time > 200 && mine.Count < 3
+                            ? b.FreeSites().Where(x => !b.wildSites.Contains(x.id)).OrderBy(x => (new Vector2(x.x, x.y) - hp).sqrMagnitude).FirstOrDefault()
+                            : null;
+                        if (expandSite != null && army.Count >= 6) saving = true;
+                    }
                     var idle = b.buildings.Where(x => x.alive && x.faction == "player" && x.Done && x.queue.Count == 0).ToList();
                     foreach (var bl in idle) if (bl.trains.Length > 0) bl.rally = rally;
                     if (player == "casual")
@@ -136,6 +141,14 @@ namespace Outpost.EditorTools
                         }
                     }
                 }
+                if (expandSite != null)
+                {
+                    var at = new Vector2(expandSite.x, expandSite.y);
+                    var party = army.Where(u => u.pop > 0).OrderBy(u => (u.Pos - at).sqrMagnitude).Take(3).ToList();
+                    if (b.Expand("player", expandSite) == null) sb.AppendLine($"  player expands at {(int)b.time}s");
+                    else if (party.Count > 0 && (party[0].Pos - at).sqrMagnitude > 300 * 300 && party[0].order == Order.None)
+                        b.OrderMove(party, at, true);
+                }
                 if (player == "efficient")
                 {
                     if (b.time > 420 && army.Count >= 14 && !attacked)
@@ -160,14 +173,17 @@ namespace Outpost.EditorTools
                     var A = b.Alien;
                     sb.AppendLine($"{(int)b.time}s ALIEN res {(int)A.res} inc {A.income:0.0} tech {A.tech} pop {A.popUsed}/{A.popCap} saving={b.ai.saving}" +
                                   $" bld[{string.Join(",", hive.slots.Where(s => s != null).Select(s => s.kind + (s.upgraded ? "+" : "") + (s.Done ? "" : "*")))}]" +
-                                  $" spines {hive.sockets.Count(s => s != null)} elder={hive.hq.upgraded} research[{string.Join(",", A.research)}]" +
+                                  $" spines {hive.sockets.Count(s => s != null)} elder={hive.hq.upgraded} bases {b.bases.Count(x => x.Alive && x.faction == "alien")}" +
+                                  $" relays {b.relays.Count(r => r.owner == "alien")}/{b.relays.Count(r => r.owner == "player")} hero={(A.hero != null ? A.hero.kind : "-")} research[{string.Join(",", A.research)}]" +
                                   $" | PLAYER res {(int)P.res} inc {P.income:0.0} tech {P.tech} units {army.Count} hq {(int)home.hq.hp}" +
                                   $" bld[{string.Join(",", home.slots.Where(s => s != null).Select(s => s.kind + (s.Done ? "" : "*")))}] research[{string.Join(",", P.research)}]");
                 }
             }
             sb.AppendLine($"end t={(int)b.time} winner={b.winner ?? "none"} ({sw.ElapsedMilliseconds} ms) kills player/alien {b.Player.kills}/{b.Alien.kills}" +
                           $" commander deaths {heroDeaths} hq {(int)home.hq.hp} hive {(int)hive.hq.hp}");
-            sb.AppendLine($"  final armies: player {Mix(b, "player")} | alien {Mix(b, "alien")}");
+            sb.AppendLine($"  final armies: player {Mix(b, "player")} | alien {Mix(b, "alien")} | wild {Mix(b, "wild")}");
+            sb.AppendLine($"  bases player/alien {b.bases.Count(x => x.Alive && x.faction == "player")}/{b.bases.Count(x => x.Alive && x.faction == "alien")}" +
+                          $", crates left {b.crates.Count(c => c.alive)}/{b.crates.Count}, relays player/alien {b.relays.Count(r => r.owner == "player")}/{b.relays.Count(r => r.owner == "alien")}");
             return sb.ToString();
         }
 

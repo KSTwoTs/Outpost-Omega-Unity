@@ -62,12 +62,46 @@ namespace Outpost.UI
         public void Refresh()
         {
             var sel = input.selection.Where(e => e.alive).ToList();
-            Ui.Show(root, sel.Count > 0);
+            var site = sel.Count == 0 ? input.selectedSite : null;
+            Ui.Show(root, sel.Count > 0 || site != null);
+            if (site != null)
+            {
+                Ui.Show(single, true);
+                Ui.Show(multi, false);
+                Site(site);
+                return;
+            }
             if (sel.Count == 0) return;
             Ui.Show(single, sel.Count == 1);
             Ui.Show(multi, sel.Count > 1);
             if (sel.Count == 1) Single(sel[0]);
             else Many(sel);
+        }
+
+        // ------------------------------------------------------------------ an expansion pad
+        void Site(Outpost.Content.MapData.SiteData site)
+        {
+            if (shownModel != "bld_site")
+            {
+                shownModel = "bld_site";
+                portraitDone = false;
+            }
+            if (!portraitDone) portraitDone = Ui.Portrait(portrait, "bld_site", "Site");
+            title.text = "Expansion site";
+            title.EnableInClassList("op-title--player", true);
+            title.EnableInClassList("op-title--alien", false);
+            hp.text = "";
+            Ui.SetFill(hpFill, 0f);
+            Ui.Show(shieldBar, false);
+            Ui.Show(workBar, false);
+            Queue(null);
+            string why = battle.CanExpand("player", site);
+            line1.text = why == null ? "<color=#78eb96>Ready: build a base here.</color>" : $"<color=#ffd77a>{why}</color>";
+            line2.text = "A new base adds building slots, turret sockets and +10 population.";
+            line3.text = battle.wildSites.Contains(site.id) ? "A wild nest guards this site." : "";
+            Ui.Show(line1, true);
+            Ui.Show(line2, true);
+            Ui.Show(line3, line3.text.Length > 0);
         }
 
         // ------------------------------------------------------------------ one thing

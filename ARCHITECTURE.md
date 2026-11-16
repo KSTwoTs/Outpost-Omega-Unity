@@ -19,7 +19,7 @@ Rules that follow from it:
 - **The Sim never knows it is being watched.** It talks to the outside only through `IBattleFx` (things happened: a shot, a death, a message). Views and the HUD read Sim objects but change them only by calling `Battle` methods (`OrderMove`, `QueueUnit`, `UseAbility`...).
 - **A mode is a configuration plus an optional director, not a new battle.** Skirmish, a campaign operation, a Siege Run node and Last Stand all create the same `Battle` from a `BattleConfig`; the campaign adds a `Mission`, Siege Run adds strains and a `BossDirector`.
 - **Numbers live in data files, not code.** Balance stays in `StreamingAssets/Outpost/data/*.json`, shared with the Python game until the balance pass in Milestone 5.
-- **Each layer becomes its own assembly** (`.asmdef`) at M1.3, together with the Sim file split, so the compiler enforces the table above and Sim changes do not recompile the UI.
+- **Each layer becomes its own assembly** (`.asmdef`) in a housekeeping pass before M1.4 (moved from M1.3, which only added map control), together with the Sim file split, so the compiler enforces the table above and Sim changes do not recompile the UI.
 
 ## Folder tree
 
@@ -77,7 +77,7 @@ Content/
 
 ### Sim (layer 2)
 
-`Battle.cs` is one 1,400-line file today. At M1.3, before map control is added, it is split into partial files by system. Nothing about how it works changes; it only becomes possible to find things.
+`Battle.cs` is one 1,400-line file today. In the housekeeping pass before M1.4 (the split was planned for M1.3 but deferred; only `Battle.MapControl.cs` is a separate partial file so far) it is split into partial files by system. Nothing about how it works changes; it only becomes possible to find things.
 
 ```
 Sim/
@@ -101,7 +101,7 @@ Sim/
 │  ├─ Battle.Support.cs       now inside Battle.cs · healers, shields
 │  ├─ Battle.Detection.cs     now inside Battle.cs · stealth, detection, Scan
 │  ├─ Battle.Economy.cs       now inside Battle.cs · income, pop cap, tech
-│  ├─ Battle.MapControl.cs    M1.3 · expansions, wild nests, relays, crates, recycling
+│  ├─ Battle.MapControl.cs    now · expansions, wild nests, relays, crates, recycling
 │  ├─ Battle.Towers.cs        M1.4 · tower update, tiers, upgrade and sell
 │  ├─ TowerBehaviors.cs       M1.4 · the behavior types that cover all 34 towers
 │  ├─ Battle.Bunkers.cs       M1.4 · bunkers and garrisons
@@ -150,7 +150,8 @@ View/
 ├─ World/
 │  ├─ Lighting.cs        M1.8 · sun, shadows, glowing structures, color grade per biome
 │  ├─ FogView.cs         M1.7 · draws the fog of war
-│  ├─ Markers.cs         now · health, shield and progress bars over units, rank stars, the drag box
+│  ├─ Markers.cs         now · health, shield and progress bars over units, rank stars, relay capture bars, the drag box
+│  ├─ MapProps.cs        now · base site pads, base aprons, relay towers (by owner), supply crates
 │  ├─ Creep.cs           M4 · creep spreading around alien bases
 │  ├─ Decals.cs          M4 · craters, scorch marks, tracks
 │  └─ Weather.cs         M4

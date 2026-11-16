@@ -19,7 +19,7 @@ namespace Outpost.UI
         RtsCamera rig;
         MapData map;
 
-        static readonly Color Mine = new Color(0.35f, 1f, 0.5f), Theirs = new Color(1f, 0.35f, 0.3f);
+        static readonly Color Mine = new Color(0.35f, 1f, 0.5f), Theirs = new Color(1f, 0.35f, 0.3f), Wild = new Color(0.8f, 0.6f, 1f);
 
         public MinimapPanel()
         {
@@ -66,11 +66,14 @@ namespace Outpost.UI
             var r = dots.contentRect;
             float sx = r.width / map.px_w, sy = r.height / map.px_h;
             var p = ctx.painter2D;
+            foreach (var s in battle.FreeSites()) Square(p, s.x * sx, s.y * sy, 2.4f, new Color(1f, 0.85f, 0.25f, 0.9f));
+            foreach (var rl in battle.relays)
+                Square(p, rl.x * sx, rl.y * sy, 3.2f, rl.owner == "player" ? new Color(0.4f, 0.85f, 1f) : rl.owner == "alien" ? new Color(1f, 0.45f, 0.9f) : Color.white);
             foreach (var e in battle.All())
             {
                 if (!e.alive || battle.HiddenFrom(e, "player")) continue;
                 float s = e.IsUnit ? 1.6f : e is Building b && b.IsHq ? 4f : 2.6f;
-                Square(p, e.x * sx, e.y * sy, s, e.faction == "player" ? Mine : Theirs);
+                Square(p, e.x * sx, e.y * sy, s, e.faction == "player" ? Mine : e.faction == "wild" ? Wild : Theirs);
             }
             if (rig != null)
             {

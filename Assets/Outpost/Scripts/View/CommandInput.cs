@@ -24,6 +24,7 @@ namespace Outpost.View
 
         public readonly List<Entity> selection = new List<Entity>();
         public bool attackMode, abilityMode;
+        public MapData.SiteData selectedSite;                      // a free expansion pad the player clicked
         public Building scanFrom;                                  // Sensor Array waiting for a Scan target
         public readonly List<Rect> blockers = new List<Rect>();   // extra blocked rects (GUI coords, top-left origin)
         public System.Func<Vector2, bool> overUi;                  // set by the HUD: is this screen point on a panel?
@@ -112,6 +113,7 @@ namespace Outpost.View
             attackMode = false;
             abilityMode = false;
             scanFrom = null;
+            selectedSite = null;
         }
 
         /// <summary>F: fires the selection's abilities, or starts aiming when they need a spot on the ground.</summary>
@@ -257,6 +259,11 @@ namespace Outpost.View
             if (kb.fKey.wasPressedThisFrame) TriggerAbility();
             if (kb.sKey.wasPressedThisFrame) battle.OrderStop(MyUnits, false);
             if (kb.hKey.wasPressedThisFrame) battle.OrderStop(MyUnits, true);
+            if (kb.deleteKey.wasPressedThisFrame && selection.Count == 1 && selection[0] is Building rb && rb.faction == "player")
+            {
+                string err = battle.Demolish(rb);
+                Toast(err ?? "Recycled");
+            }
             if (kb.qKey.wasPressedThisFrame)
                 Select(battle.units.Where(u => u.alive && u.faction == "player" && (u.pop > 0 || u.kind == "commander")));
             if (kb.eKey.wasPressedThisFrame)
@@ -308,6 +315,9 @@ namespace Outpost.View
             if (e == null)
             {
                 if (!shift) Select(new Entity[0]);
+                // a click on a free expansion pad selects the pad
+                if (GroundPoint(mp, out var gp))
+                    selectedSite = battle.FreeSites().FirstOrDefault(s => (new Vector2(s.x, s.y) - gp).sqrMagnitude < 90 * 90);
                 return;
             }
             bool dbl = e == lastClicked && Time.unscaledTime - lastClickT < 0.35f;

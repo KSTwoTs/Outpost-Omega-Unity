@@ -69,28 +69,11 @@ namespace Outpost.Game
 
             battle = new Battle(map) { fx = fx };
             EntityView.IsHidden = e => battle != null && battle.HiddenFrom(e, "player");
-            Base player = null, alien = null;
-            foreach (var s in map.sites)
-            {
-                if (s.main == "player" || s.main == "alien")
-                {
-                    bool human = s.main == "player";
-                    BaseApron.Build(map, s, human, world.transform);
-                    var b = battle.FoundBase(s, s.main, true);
-                    if (human) player = b; else alien = b;
-                }
-                else Decor("bld_site", map, s.x, s.y);
-            }
-            foreach (var r in map.relays) Decor("bld_relay_none", map, r[0], r[1]);
-            foreach (var c in map.crates) Decor("bld_crate", map, c[0], c[1]);
-
-            var st = GameData.Rts["start"];
-            if (player != null && alien != null)
-            {
-                battle.ai = new AlienAI(battle, difficulty);
-                StartingForce(player, alien, GameData.List(st, "player_units").Append("commander"));
-                StartingForce(alien, player, GameData.List(st, "alien_units"));
-            }
+            var props = world.AddComponent<MapProps>();
+            props.Bind(battle, map);
+            battle.StandardStart(difficulty);
+            props.Refresh();
+            var player = battle.bases.FirstOrDefault(x => x.faction == "player");
 
             input.battle = battle;
             input.fx = fx;
@@ -102,35 +85,14 @@ namespace Outpost.Game
             markers.battle = battle;
             markers.input = input;
             markers.cam = cam;
+            markers.map = map;
             if (player != null)
             {
                 var toward = new Vector2(map.px_w / 2f - player.x, map.px_h / 2f - player.y).normalized;
                 var look = new Vector2(player.x, player.y) + toward * 160;
                 rig.JumpTo(MapBuilder.Ground(map, look.x, look.y));
             }
-            fx.Message("player", "Build up and destroy the alien Hive. Select your Command Post to build.");
-        }
-
-        void StartingForce(Base home, Base enemy, IEnumerable<string> kinds)
-        {
-            var dir = new Vector2(enemy.x - home.x, enemy.y - home.y).normalized;
-            var side = new Vector2(-dir.y, dir.x);
-            int i = 0;
-            foreach (var k in kinds)
-            {
-                if (GameData.Unit(k) == null) continue;
-                var p = new Vector2(home.x, home.y) + dir * 230 + side * ((i - 1) * 60);
-                var u = battle.SpawnUnit(k, home.faction, p.x, p.y);
-                u.angle = Mathf.Atan2(dir.y, dir.x);
-                if (home.faction == "alien") battle.ai?.OnUnit(u);
-                i++;
-            }
-        }
-
-        void Decor(string model, MapData map, float x, float y)
-        {
-            var go = ModelLibrary.Spawn(model, world.transform);
-            if (go != null) go.transform.position = MapBuilder.Ground(map, x, y);
+            fx.Message("player", "Build up and destroy the alien Hive. Select your Command Post to build; claim the yellow pads for more bases.");
         }
 
         void Update()
