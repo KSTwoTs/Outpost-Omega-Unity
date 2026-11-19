@@ -208,6 +208,7 @@ namespace Outpost.Sim
                         if (slow > 0) e.ApplySlow(slow, 0.5f);
                         if (dps > 0) Hit(e, TowerDamage(t, dps * 0.25f), "bld", t, t.faction, t.behavior == "magnet");
                     }
+                    if (targets.Count > 0) fx?.TowerFired(t, targets[0]);
                     if (t.behavior == "fence")
                         for (int i = 0; i < Mathf.Min(3, targets.Count); i++) fx?.Shot(t, t.Pos, targets[i].Pos, t.faction, 1);
                     break;
@@ -224,6 +225,7 @@ namespace Outpost.Sim
                         Hit(e, TowerDamage(t, GameData.F(st, "damage", 20)), "bld", t, t.faction);
                         e.stunT = Mathf.Max(e.stunT, stun);
                     }
+                    fx?.TowerFired(t, targets[0]);
                     fx?.Ring(t.Pos, rng, "energy");
                     break;
                 }
@@ -234,6 +236,7 @@ namespace Outpost.Sim
                     if (targets.Count == 0) return;
                     t.cooldown = 1f / Mathf.Max(0.03f, GameData.F(st, "fire_rate", 0.25f));
                     targets.Sort((a, b) => b.hp.CompareTo(a.hp));
+                    fx?.TowerFired(t, targets[0]);
                     float dur = t.behavior == "chrono" ? GameData.F(st, "rewind") : GameData.F(st, "hack_time", 3f);
                     foreach (var e in targets.Take(Mathf.Max(1, GameData.I(st, "targets", 1))))
                     {
@@ -248,6 +251,7 @@ namespace Outpost.Sim
                     if (t.cooldown > 0) return;
                     if (EnemiesNear(t.faction, t.x, t.y, rng, false, true).Count == 0) return;
                     t.cooldown = 1f / Mathf.Max(0.03f, GameData.F(st, "fire_rate", 0.25f));
+                    fx?.TowerFired(t, null);
                     for (int i = 0; i < (int)GameData.F(st, "hatch", 2); i++)
                         SpawnBroodling(t, GameData.F(st, "life", 8f), GameData.F(st, "contact_dps", 25) / 4f);
                     break;
@@ -280,6 +284,7 @@ namespace Outpost.Sim
         void TowerFire(Tower t, Entity tg, float rng)
         {
             var st = t.stats;
+            fx?.TowerFired(t, tg);
             float dmg = TowerDamage(t, TowerBehaviors.ShotDamage(t.behavior, st));
             switch (t.behavior)
             {

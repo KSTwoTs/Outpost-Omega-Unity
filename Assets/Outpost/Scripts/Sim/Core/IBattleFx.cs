@@ -20,5 +20,10 @@ namespace Outpost.Sim
         /// <summary>A patch that stays for a while. kind: fire / acid.</summary>
         void Zone(Vector2 at, float radius, float life, string kind);
         void Trail(Vector2 from, Vector2 to, string faction);
+        /// <summary>A tower just acted (fired, pulsed, stunned, hatched). target may be null. Pure notification for the view:
+        /// the shots, beams, rings and lightning it reports next belong to this tower.</summary>
+        void TowerFired(Tower t, Entity target);
+        /// <summary>A unit just used its ability (id from rts.json) aimed at a point. Pure notification for the view.</summary>
+        void Ability(Unit u, string id, Vector2 at);
     }
 }

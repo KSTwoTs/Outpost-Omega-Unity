@@ -59,6 +59,7 @@ Outpost-Omega-Unity/
       │  └─ Sandbox/               now · SandboxBootstrap.cs
       ├─ Editor/                   editor-only tools, never in a build
       ├─ Resources/UI/             now · the interface's style sheet and theme
+      ├─ Resources/Effects/        now · the two effect base materials (keep the effect shaders in builds)
       ├─ Art/                      materials, shaders, effects, icons
       └─ Audio/                    sound effects, music, voice
 ```
@@ -87,7 +88,7 @@ Sim/
 │  ├─ Battle.cs               now · the battle: lists of everything, Tick, setup, victory
 │  ├─ BattleConfig.cs         M2 · everything that defines one battle: map, size, difficulty, leader,
 │  │                                loadout, mode rules, strains. The only way a battle is created
-│  ├─ IBattleFx.cs            now · split out of Battle.cs
+│  ├─ IBattleFx.cs            now · split out of Battle.cs; M1.5 added TowerFired and Ability (notifications only)
 │  ├─ GameData.cs             now · reads the JSON data
 │  ├─ NavGrid.cs              now · walkable tiles and pathfinding
 │  ├─ Entity.cs, Unit.cs, Building.cs, Tower.cs, Base.cs, Faction.cs
@@ -146,10 +147,11 @@ View/
 ├─ BaseApron.cs          now · the connected base platform
 ├─ RtsCamera.cs          now
 ├─ Effects/
-│  ├─ Fx.cs              now · the IBattleFx receiver; hands work to the files below
-│  ├─ WeaponEffects.cs   M1.5 · muzzle flashes, tracers, projectiles, explosions
-│  ├─ AbilityEffects.cs  M1.5 · one proper visual per ability and power
-│  └─ EffectPool.cs      M1.5 · recycles effect objects
+│  ├─ Fx.cs              now · the IBattleFx receiver; hands work to the files below (moved here from View/ at M1.5)
+│  ├─ WeaponEffects.cs   now · muzzle flashes, tracers, projectiles, explosions, beams, lightning, patches, deaths,
+│  │                           the looks of all 34 tower behaviours; FxColors (the Python palette)
+│  ├─ AbilityEffects.cs  now · one visual per unit ability, Scan, generic rings; Power() is the hook for M1.6 powers
+│  └─ EffectPool.cs      now · recycles every effect object (quads, lines, 4 shared particle systems), capped
 ├─ World/
 │  ├─ Lighting.cs        M1.8 · sun, shadows, glowing structures, color grade per biome
 │  ├─ FogView.cs         M1.7 · draws the fog of war
@@ -227,7 +229,7 @@ Saves and user-made maps are written to the player's own data folder (`Applicati
 
 ```
 Editor/
-├─ OutpostMenu.cs       now · the Outpost menu
+├─ OutpostMenu.cs       now · the Outpost menu; Effects Test (edit-mode stills of every effect, pool stress test)
 ├─ HeadlessMatch.cs     now · full matches without graphics, for checking rules changes
 ├─ ParityCheck.cs       M5 · runs the same scripted fights as the Python game and compares
 ├─ ContentImport.cs     M2 · one click to re-run the Python export for data, maps or models
@@ -240,11 +242,13 @@ Editor/
 Assets/Outpost/
 ├─ Art/
 │  ├─ Materials/     M1.2 · shared materials for the models (today they are made in code)
-│  ├─ Shaders/       M1.8 · team color and glow · M4 creep and decals
-│  ├─ Effects/       M1.5 · particle systems and textures
+│  ├─ Shaders/       now · FxAdditive / FxAlpha (effects) · M1.8 team color and glow · M4 creep and decals
+│  ├─ Effects/       M1.5 · empty on purpose: effect textures are drawn in code (EffectPool.MakeTexture);
+│  │                        hand-made textures or particle prefabs go here if the look needs them later
 │  └─ Icons/         M2 · ability, order, research and resource icons (portraits are made at run time)
 ├─ Audio/            M4
 │  ├─ Sfx/, Music/, Voice/
+├─ Resources/Effects/ loaded by name at run time: fx_additive.mat, fx_alpha.mat
 └─ Resources/UI/     loaded by name at run time
    ├─ Outpost.uss        now · every color, size and font of the interface
    ├─ OutpostTheme.tss   now · Unity's default runtime theme, required by UI Toolkit

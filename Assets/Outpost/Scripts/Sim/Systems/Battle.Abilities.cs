@@ -34,6 +34,7 @@ namespace Outpost.Sim
             if (rng > 0 && toP.magnitude > rng) p = u.Pos + toP.normalized * rng;   // clamp to max range
             float dm = UnitMods(u.faction, u.kind).dmg;
             float dmg = GameData.F(ab, "damage"), radius = GameData.F(ab, "radius"), dur = GameData.F(ab, "duration");
+            fx?.Ability(u, id, p);
             switch (id)
             {
                 case "frag":
