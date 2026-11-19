@@ -2,7 +2,7 @@
 
 This is the target layout for the whole project and the rules that keep it tidy. Files marked **now** exist today; everything else is tagged with the roadmap step that creates it (M1.3 = Milestone 1, step 3). When a step lands, its files go where this document says, and the document is updated if the plan changes.
 
-**Placeholders (Nov 18).** Every planned script below already exists as an empty placeholder: a header comment saying what it will hold and which step fills it, and an empty namespace, so it compiles to nothing. A step fills its placeholder in rather than creating the file. Code that moves out of `Battle.cs`, `Entities.cs`, `AlienAI.cs` and `MapBuilder.cs` goes into the matching placeholder in the housekeeping pass; the existing files move into `Sim/Core/` and `Sim/AI/` then. Empty asset folders hold a `.gitkeep` so git keeps them. Not created yet: the asmdefs (housekeeping pass), the scenes `Boot.unity` and `MainMenu.unity` (made in the editor at M2), `Battle.unity` (a rename of Skirmish.unity), `audio.json` (M4), and anything for Classic Defense or rigged animation (both undecided). Placeholders in `Input/` use the `Outpost.View` namespace like `CommandInput` does, because a namespace called `Outpost.Input` would hide Unity's `Input` class inside the project.
+**Placeholders (Nov 18).** Every planned script below already exists as an empty placeholder: a header comment saying what it will hold and which step fills it, and an empty namespace, so it compiles to nothing. A step fills its placeholder in rather than creating the file. The housekeeping pass (Nov 19) moved the code out of `Battle.cs`, `Entities.cs`, `AlienAI.cs` and `MapBuilder.cs` into the matching placeholders and moved the remaining files into `Sim/Core/` and `Sim/AI/`. Empty asset folders hold a `.gitkeep` so git keeps them. Not created yet: the scenes `Boot.unity` and `MainMenu.unity` (made in the editor at M2), `Battle.unity` (a rename of Skirmish.unity), `audio.json` (M4), and anything for Classic Defense or rigged animation (both undecided). Placeholders in `Input/` use the `Outpost.View` namespace like `CommandInput` does, because a namespace called `Outpost.Input` would hide Unity's `Input` class inside the project.
 
 ## The five layers
 
@@ -21,7 +21,7 @@ Rules that follow from it:
 - **The Sim never knows it is being watched.** It talks to the outside only through `IBattleFx` (things happened: a shot, a death, a message). Views and the HUD read Sim objects but change them only by calling `Battle` methods (`OrderMove`, `QueueUnit`, `UseAbility`...).
 - **A mode is a configuration plus an optional director, not a new battle.** Skirmish, a campaign operation, a Siege Run node and Last Stand all create the same `Battle` from a `BattleConfig`; the campaign adds a `Mission`, Siege Run adds strains and a `BossDirector`.
 - **Numbers live in data files, not code.** Balance stays in `StreamingAssets/Outpost/data/*.json`, shared with the Python game until the balance pass in Milestone 5.
-- **Each layer becomes its own assembly** (`.asmdef`) in a housekeeping pass before M1.4 (moved from M1.3, which only added map control), together with the Sim file split, so the compiler enforces the table above and Sim changes do not recompile the UI.
+- **Each layer is its own assembly** (`.asmdef`, since the housekeeping pass on Nov 19), so the compiler enforces the table above and Sim changes do not recompile the UI: `Outpost.Content` (Scripts/Content), `Outpost.Sim` (Scripts/Sim, references Content), `Outpost.View` (Scripts/View, plus Scripts/Input through `Input/Outpost.View.asmref`; references Content, Sim, Input System, URP), `Outpost.UI` (Content, Sim, View, Input System), `Outpost.Game` (everything below, Input System, URP), `Outpost.Sandbox` (Content, Sim, View, URP) and `Outpost.Editor` (Editor/, Editor platform only, references all of them). Newtonsoft JSON needs no entry: its package DLL is auto-referenced. A new folder of scripts inside a layer joins that layer's assembly automatically; a new layer or a new upward use needs the asmdef changed (and should not happen).
 
 ## Folder tree
 
@@ -70,7 +70,7 @@ Outpost-Omega-Unity/
 ```
 Content/
 ├─ MapBuilder.cs        now · loads a map folder, builds the terrain mesh, Ground(x, y)
-├─ MapData.cs           M1.3 · the map data classes, split out of MapBuilder.cs
+├─ MapData.cs           now · the map data classes (MapData, MapData.SiteData), split out of MapBuilder.cs
 ├─ ModelLibrary.cs      now · loads the model pak, spawns a model by name
 ├─ PortraitLibrary.cs   now · unit and building portraits for the HUD (photographed once from the models)
 ├─ MapGenerator.cs      M4 · the Python map generator rebuilt in C# (needed by the Map Builder)
@@ -79,7 +79,7 @@ Content/
 
 ### Sim (layer 2)
 
-`Battle.cs` is one 1,400-line file today. In the housekeeping pass before M1.4 (the split was planned for M1.3 but deferred; only `Battle.MapControl.cs` is a separate partial file so far) it is split into partial files by system. Nothing about how it works changes; it only becomes possible to find things.
+`Battle` is one `partial` class spread over `Core/Battle.cs` and one file per rules area in `Systems/` (split in the housekeeping pass on Nov 19, code moved verbatim). `Battle.cs` keeps the lists, the constructor, `Tick`, victory and the spatial queries (`Near`, `Acquire`). `AlienAI` is split the same way.
 
 ```
 Sim/
@@ -87,24 +87,25 @@ Sim/
 │  ├─ Battle.cs               now · the battle: lists of everything, Tick, setup, victory
 │  ├─ BattleConfig.cs         M2 · everything that defines one battle: map, size, difficulty, leader,
 │  │                                loadout, mode rules, strains. The only way a battle is created
-│  ├─ IBattleFx.cs            M1.3 · split out of Battle.cs
+│  ├─ IBattleFx.cs            now · split out of Battle.cs
 │  ├─ GameData.cs             now · reads the JSON data
 │  ├─ NavGrid.cs              now · walkable tiles and pathfinding
 │  ├─ Entity.cs, Unit.cs, Building.cs, Tower.cs, Base.cs, Faction.cs
-│  │                          now as Entities.cs · split one class per file at M1.3
-│  └─ Projectiles.cs          M1.3 · Projectile, Strike, Zone, ScanArea (from Entities.cs)
+│  │                          now · one class per file (Unit.cs also holds Order and Dash, Building.cs
+│  │                                QueueItem, Base.cs the map-control Relay and Crate)
+│  └─ Projectiles.cs          now · Projectile, Strike, Zone, ScanArea (from Entities.cs)
 ├─ Systems/                   partial pieces of Battle, one per rules area
-│  ├─ Battle.Construction.cs  now inside Battle.cs · bases, buildings, upgrades, research
-│  ├─ Battle.Production.cs    now inside Battle.cs · unit queues, spawning, hero respawn
-│  ├─ Battle.Orders.cs        now inside Battle.cs · move, attack, stop, formations
-│  ├─ Battle.Units.cs         now inside Battle.cs · per-unit update: targeting, movement, firing
-│  ├─ Battle.Combat.cs        now inside Battle.cs · Hit, Splash, projectiles, strikes, zones
-│  ├─ Battle.Abilities.cs     now inside Battle.cs · unit abilities and buffs
-│  ├─ Battle.Support.cs       now inside Battle.cs · healers, shields
-│  ├─ Battle.Detection.cs     now inside Battle.cs · stealth, detection, Scan
-│  ├─ Battle.Economy.cs       now inside Battle.cs · income, pop cap, tech
+│  ├─ Battle.Construction.cs  now · bases, buildings, turret placement, costs, upgrades, research
+│  ├─ Battle.Production.cs    now · unit queues, spawning and unit multipliers (UnitMods), hero spawn, queue completion
+│  ├─ Battle.Orders.cs        now · move, attack, stop, formations
+│  ├─ Battle.Units.cs         now · per-unit update: targeting, movement, firing
+│  ├─ Battle.Combat.cs        now · Hit, Splash, Kill and veterancy, projectiles, strikes, zones
+│  ├─ Battle.Abilities.cs     now · unit abilities and buffs
+│  ├─ Battle.Support.cs       now · healers, shields
+│  ├─ Battle.Detection.cs     now · stealth, detection, Scan
+│  ├─ Battle.Economy.cs       now · income, hero respawn timer, pop cap, tech
 │  ├─ Battle.MapControl.cs    now · expansions, wild nests, relays, crates, recycling
-│  ├─ Battle.Towers.cs        M1.4 · tower update, tiers, upgrade and sell
+│  ├─ Battle.Towers.cs        now · the tower update · M1.4 adds the full loadout, tiers, upgrade and sell
 │  ├─ TowerBehaviors.cs       M1.4 · the behavior types that cover all 34 towers
 │  ├─ Battle.Bunkers.cs       M1.4 · bunkers and garrisons
 │  ├─ Battle.Powers.cs        M1.6 · leader powers and alien powers
@@ -112,8 +113,8 @@ Sim/
 │  └─ Fog.cs                  M1.7 · fog of war and what each side has seen
 ├─ AI/
 │  ├─ AlienAI.cs              now · the Swarm's commander
-│  ├─ AlienAI.Economy.cs      M1.3 · split out, plus expansion plans
-│  ├─ AlienAI.Army.cs         M1.3 · split out, plus relay fights; M1.7 scouting and raids
+│  ├─ AlienAI.Economy.cs      now · shopping list and savings, expansions, unit production, evolutions
+│  ├─ AlienAI.Army.cs         now · defense, relay raiders, expansion escorts, attack waves, the Queen · M1.7 scouting and raids
 │  ├─ AlienAI.Powers.cs       M1.6 · when it casts Acid Rain, Spore Storm, Swarm Call
 │  └─ AllyAI.cs               M4 · the allied human commander for 2v2
 ├─ Missions/                  M3 · the campaign

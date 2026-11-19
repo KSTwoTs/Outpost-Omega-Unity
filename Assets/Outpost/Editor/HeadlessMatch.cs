@@ -63,7 +63,8 @@ namespace Outpost.EditorTools
                 if (player != "idle")
                 {
                     if (oi < order.Length && P.res >= b.BuildCost(order[oi]) && b.FreeSlot(home) >= 0 && b.Build(home, order[oi]) == null) oi++;
-                    if (oi >= 2 && b.time > 120 && P.res > 400 && b.FreeSocket(home) >= 0 && home.sockets.Count(s => s != null) < 2)
+                    if (player == "efficient") Towers(b, home, oi >= 2);
+                    else if (oi >= 2 && b.time > 120 && P.res > 400 && b.FreeSocket(home) >= 0 && home.sockets.Count(s => s != null) < 2)
                         b.BuildTower(home, "pulse");
                     // the efficient player holds back on units while it saves for its next building
                     bool saving = player == "efficient" && oi < order.Length && army.Count >= 3 + oi;
@@ -176,16 +177,47 @@ namespace Outpost.EditorTools
                                   $" spines {hive.sockets.Count(s => s != null)} elder={hive.hq.upgraded} bases {b.bases.Count(x => x.Alive && x.faction == "alien")}" +
                                   $" relays {b.relays.Count(r => r.owner == "alien")}/{b.relays.Count(r => r.owner == "player")} hero={(A.hero != null ? A.hero.kind : "-")} research[{string.Join(",", A.research)}]" +
                                   $" | PLAYER res {(int)P.res} inc {P.income:0.0} tech {P.tech} units {army.Count} hq {(int)home.hq.hp}" +
-                                  $" bld[{string.Join(",", home.slots.Where(s => s != null).Select(s => s.kind + (s.Done ? "" : "*")))}] research[{string.Join(",", P.research)}]");
+                                  $" bld[{string.Join(",", home.slots.Where(s => s != null).Select(s => s.kind + (s.Done ? "" : "*")))}] research[{string.Join(",", P.research)}]" +
+                                  $" towers[{TowerList(b, "player")}]");
                 }
             }
             sb.AppendLine($"end t={(int)b.time} winner={b.winner ?? "none"} ({sw.ElapsedMilliseconds} ms) kills player/alien {b.Player.kills}/{b.Alien.kills}" +
                           $" commander deaths {heroDeaths} hq {(int)home.hq.hp} hive {(int)hive.hq.hp}");
             sb.AppendLine($"  final armies: player {Mix(b, "player")} | alien {Mix(b, "alien")} | wild {Mix(b, "wild")}");
+            sb.AppendLine($"  towers: player [{TowerList(b, "player")}] alien [{TowerList(b, "alien")}]");
             sb.AppendLine($"  bases player/alien {b.bases.Count(x => x.Alive && x.faction == "player")}/{b.bases.Count(x => x.Alive && x.faction == "alien")}" +
                           $", crates left {b.crates.Count(c => c.alive)}/{b.crates.Count}, relays player/alien {b.relays.Count(r => r.owner == "player")}/{b.relays.Count(r => r.owner == "alien")}");
             return sb.ToString();
         }
+
+        // the efficient player's turrets: a starter set at the main base, one Pulse Turret at each expansion,
+        // then tier upgrades once it has spare Supplies (exercises build / upgrade / behaviors in the suite)
+        static readonly string[] HomeTowers = { "pulse", "tesla", "cryo", "radar" };
+
+        static void Towers(Battle b, Base home, bool started)
+        {
+            var P = b.Player;
+            if (!started || b.time < 120) return;
+            int have = home.sockets.Count(s => s != null);
+            if (have < HomeTowers.Length && P.res > 400 && b.FreeSocket(home) >= 0)
+            {
+                b.BuildTower(home, HomeTowers[have]);
+                return;
+            }
+            foreach (var bs in b.bases)
+                if (bs != home && bs.Alive && bs.faction == "player" && bs.hq.Done && bs.sockets.All(s => s == null) && P.res > 400)
+                {
+                    b.BuildTower(bs, "pulse");
+                    return;
+                }
+            if (b.time < 300 || P.res < 500) return;
+            var up = b.towers.Where(t => t.alive && t.faction == "player" && t.Done && t.UpgradeCost() >= 0)
+                .OrderBy(t => t.tier).ThenBy(t => t.UpgradeCost()).FirstOrDefault();
+            if (up != null) b.UpgradeTower(up);
+        }
+
+        static string TowerList(Battle b, string faction) =>
+            string.Join(",", b.towers.Where(t => t.alive && t.faction == faction).Select(t => t.kind + (t.Done ? "" : "*") + (t.tier > 0 ? "+" + t.tier : "")));
 
         static string Mix(Battle b, string faction) =>
             string.Join(" ", b.units.Where(u => u.alive && u.faction == faction).GroupBy(u => u.kind).Select(g => g.Key + "x" + g.Count()));

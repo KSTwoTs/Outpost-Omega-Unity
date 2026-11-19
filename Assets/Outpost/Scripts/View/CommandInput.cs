@@ -40,7 +40,7 @@ namespace Outpost.View
         Entity lastClicked;
         int lastGroup = -1;
 
-        public IEnumerable<Unit> MyUnits => selection.OfType<Unit>().Where(u => u.alive && u.faction == "player");
+        public IEnumerable<Unit> MyUnits => selection.OfType<Unit>().Where(u => u.alive && u.inBunker == null && u.faction == "player");
 
         public void Toast(string text)
         {
@@ -158,7 +158,7 @@ namespace Outpost.View
 
         void Update()
         {
-            selection.RemoveAll(e => !e.alive);
+            selection.RemoveAll(e => !e.alive || (e is Unit su && su.inBunker != null));
             if (toastT > 0) toastT -= Time.unscaledDeltaTime;
             if (battle == null || cam == null) return;
             var mouse = Mouse.current;
@@ -223,7 +223,14 @@ namespace Outpost.View
                 var mine = MyUnits.ToList();
                 if (mine.Count > 0)
                 {
-                    if (hover != null && Battle.Hostile(hover.faction, "player"))
+                    if (hover is Tower bunker && bunker.IsBunker && bunker.faction == "player")
+                    {
+                        // right click on your Bunker: infantry squads garrison it
+                        if (bunker.garrison.Count >= bunker.capacity) Toast("Bunker is full");
+                        else if (battle.OrderGarrison(mine, bunker) == 0) Toast("Only infantry squads can garrison");
+                        else if (bunker.view is EntityView bv && bv != null) fx.Marker(bv.transform.position, EntityView.PlayerColor, bunker.radius * MapBuilder.Unit * 1.4f);
+                    }
+                    else if (hover != null && Battle.Hostile(hover.faction, "player"))
                     {
                         battle.OrderAttack(mine, hover);
                         if (hover.view is EntityView hv && hv != null) fx.Marker(hv.transform.position, EntityView.EnemyColor, hover.radius * MapBuilder.Unit * 1.4f);
@@ -263,6 +270,12 @@ namespace Outpost.View
             {
                 string err = battle.Demolish(rb);
                 Toast(err ?? "Recycled");
+            }
+            else if (kb.deleteKey.wasPressedThisFrame && selection.Count == 1 && selection[0] is Tower st && st.faction == "player")
+            {
+                int value = battle.SellValue(st);
+                string err = battle.SellTower(st);
+                Toast(err ?? $"Sold (+{value})");
             }
             if (kb.qKey.wasPressedThisFrame)
                 Select(battle.units.Where(u => u.alive && u.faction == "player" && (u.pop > 0 || u.kind == "commander")));

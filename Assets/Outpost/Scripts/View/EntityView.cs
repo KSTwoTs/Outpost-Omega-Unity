@@ -44,7 +44,7 @@ namespace Outpost.View
         public static string ModelNameFor(Entity e)
         {
             if (e is Unit mu) return mu.model ?? e.kind;
-            if (e is Tower) return e.kind == "spine" ? "bld_spine" : "tur_" + e.kind;
+            if (e is Tower) return e.kind == "spine" ? "bld_spine" : e.kind == "bunker" ? "bld_bunker" : "tur_" + e.kind;
             if (e is Building b && b.IsHq) return b.kind == "hq" ? "bld_hq2" : "bld_hive2";
             return "bld_" + e.kind;
         }
@@ -157,7 +157,7 @@ namespace Outpost.View
 
         void SyncUnit(Unit un, Quaternion rot, Vector3 p, float k, float dt)
         {
-            bool hidden = IsHidden != null && IsHidden(un);
+            bool hidden = un.inBunker != null || (IsHidden != null && IsHidden(un));
             int alive = un.Members;
             float ringR = 8f + un.squad * 1.8f;
             bool firing = un.fireT > 0;

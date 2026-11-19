@@ -35,8 +35,10 @@ namespace Outpost.UI
         string sig;
 
         static readonly string[] PlayerBuild = { "supply", "barracks", "depot", "reactor", "airpad", "armory", "sensor", "shieldgen", "specops" };
-        // until the loadout screen exists (Milestone 2) the four starter turrets are offered
-        static readonly string[] PlayerTowers = { "pulse", "missile", "tesla", "railgun" };
+        // until the loadout screen exists (Milestone 2) the Python game's default loadout is offered, plus the Bunker
+        static List<string> playerTowers;
+        static List<string> PlayerTowers => playerTowers ??= TowerBehaviors.DefaultLoadout();
+        bool towerPage;     // the Command Post card shows its turret page
 
         public CommandCard()
         {
@@ -137,8 +139,10 @@ namespace Outpost.UI
             }
 
             signature = "";
+            if (sel.Count == 1 && sel[0] is Tower tw && tw.faction == "player") return TowerCommands(tw, list, out signature);
             if (sel.Count != 1 || !(sel[0] is Building b) || b.faction != "player") return list;
-            signature = $"b:{b.id}:{b.Done}:{b.upgraded}";
+            if (!b.IsHq) towerPage = false;
+            signature = $"b:{b.id}:{b.Done}:{b.upgraded}:{towerPage}";
             if (!b.IsHq)
                 list.Add(new Cmd
                 {
@@ -148,6 +152,30 @@ namespace Outpost.UI
                     click = () => Report(battle.Demolish(b)),
                 });
             if (!b.Done) return list;
+
+            if (b.IsHq && towerPage)
+            {
+                var tb = b.baseRef;
+                list.Add(new Cmd { id = "back", label = "Back", tip = "<b>Back</b>\nBack to buildings.", click = () => { towerPage = false; sig = null; } });
+                foreach (var k in PlayerTowers.Concat(new[] { "bunker" }))
+                {
+                    bool bunker = k == "bunker";
+                    var d = bunker ? (Newtonsoft.Json.Linq.JObject)GameData.Rts["bunker"] : GameData.Tower(k);
+                    if (d == null) continue;
+                    string kind = k;
+                    string desc = bunker ? GameData.S(d, "desc", "") : GameData.S(d, "description", "");
+                    list.Add(new Cmd
+                    {
+                        id = "tower:" + k, label = GameData.S(d, "name", k), model = bunker ? "bld_bunker" : "tur_" + k,
+                        tip = $"<b>{GameData.S(d, "name", k)}</b>   {battle.TowerCost(k)} Supplies\n" +
+                              (bunker ? "" : $"{GameData.S(d, "category", "")} turret on one of this base's sockets. 3 tiers: select it to upgrade or sell.\n") + desc,
+                        enabled = () => battle.FreeSocket(tb) >= 0,
+                        sub = () => battle.FreeSocket(tb) < 0 ? "no sockets" : battle.TowerCost(kind).ToString(),
+                        click = () => Report(battle.BuildTower(tb, kind)),
+                    });
+                }
+                return list;
+            }
 
             if (b.IsHq)
             {
@@ -167,20 +195,13 @@ namespace Outpost.UI
                         click = () => Report(battle.Build(bs, kind)),
                     });
                 }
-                foreach (var k in PlayerTowers)
+                list.Add(new Cmd
                 {
-                    var d = GameData.Tower(k);
-                    if (d == null) continue;
-                    string kind = k;
-                    list.Add(new Cmd
-                    {
-                        id = "tower:" + k, label = GameData.S(d, "name", k), model = "tur_" + k,
-                        tip = $"<b>{GameData.S(d, "name", k)}</b>   {battle.TowerCost(k)} Supplies\nA turret on one of this base's sockets.\n{GameData.S(d, "desc", "")}",
-                        enabled = () => battle.FreeSocket(bs) >= 0,
-                        sub = () => battle.FreeSocket(bs) < 0 ? "no sockets" : battle.TowerCost(kind).ToString(),
-                        click = () => Report(battle.BuildTower(bs, kind)),
-                    });
-                }
+                    id = "towers", label = "Turrets", model = "tur_pulse",
+                    tip = "<b>Turrets and Bunker</b>\nBuild on this base's turret sockets.",
+                    sub = () => $"{bs.sockets.Count(s => s != null)}/{bs.sockets.Length} sockets",
+                    click = () => { towerPage = true; sig = null; },
+                });
             }
 
             foreach (var k in b.trains)
@@ -248,6 +269,46 @@ namespace Outpost.UI
                     click = () => input.scanFrom = b,
                 });
             }
+            return list;
+        }
+
+        /// <summary>A selected turret: upgrade to the next tier, sell; a Bunker: unload.</summary>
+        List<Cmd> TowerCommands(Tower t, List<Cmd> list, out string signature)
+        {
+            signature = $"t:{t.id}:{t.Done}:{t.tier}";
+            if (t.MaxTier > 1)
+            {
+                int next = Mathf.Min(t.tier + 1, t.MaxTier - 1);
+                var nst = t.tiers[next];
+                list.Add(new Cmd
+                {
+                    id = "tupgrade", label = t.tier + 1 >= t.MaxTier ? "Max tier" : $"Upgrade to tier {t.tier + 2}", model = EntityView.ModelNameFor(t),
+                    tip = t.UpgradeCost() < 0 ? "<b>Fully upgraded</b>"
+                        : $"<b>Upgrade to tier {t.tier + 2}</b>   {t.UpgradeCost()} Supplies\n+25% hit points" +
+                          (GameData.F(nst, "range") > 0 ? $", range {GameData.F(nst, "range") * t.scaleRange:0}" : "") +
+                          (GameData.F(nst, "damage") > 0 ? $", damage {GameData.F(nst, "damage") * t.scaleDamage:0}" : "") + ".",
+                    enabled = () => t.Done && t.UpgradeCost() >= 0 && battle.Player.res >= t.UpgradeCost(),
+                    sub = () => t.UpgradeCost() < 0 ? "max" : !t.Done ? "building" : t.UpgradeCost().ToString(),
+                    click = () => Report(battle.UpgradeTower(t)),
+                });
+            }
+            list.Add(new Cmd
+            {
+                id = "sell", label = "Sell", key = "Del",
+                tip = "<b>Sell</b>\nRemoves the turret and frees its socket. You get 60% of everything paid for it back." +
+                      (t.IsBunker ? " Squads inside walk out unhurt." : ""),
+                sub = () => "+" + battle.SellValue(t),
+                click = () => Report(battle.SellTower(t)),
+            });
+            if (t.IsBunker)
+                list.Add(new Cmd
+                {
+                    id = "unload", label = "Unload",
+                    tip = "<b>Unload</b>\nThe squads inside come out. To garrison, select infantry and right click the Bunker.",
+                    enabled = () => t.garrison.Count > 0,
+                    sub = () => $"{t.garrison.Count}/{t.capacity}",
+                    click = () => battle.Unload(t),
+                });
             return list;
         }
 

@@ -1,0 +1,26 @@
+{
+    "name": "Outpost.Editor",
+    "rootNamespace": "",
+    "references": [
+        "Outpost.Content",
+        "Outpost.Sim",
+        "Outpost.View",
+        "Outpost.UI",
+        "Outpost.Game",
+        "Outpost.Sandbox",
+        "Unity.InputSystem",
+        "Unity.RenderPipelines.Core.Runtime",
+        "Unity.RenderPipelines.Universal.Runtime"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

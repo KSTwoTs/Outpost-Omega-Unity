@@ -145,8 +145,10 @@ namespace Outpost.UI
             else if (e is Tower t)
             {
                 l1 = t.damage > 0 ? $"Damage {t.damage:0} x{t.rate:0.#}/s    Range {t.range:0}    {(t.hitsAir ? "Hits air and ground" : "Ground targets only")}" : "";
-                l2 = GameData.S(t.data, "desc", "");
+                l2 = GameData.S(t.data, "description", GameData.S(t.data, "desc", ""));
                 if (!t.Done) { work = 1 - t.buildLeft / t.buildTotal; l3 = $"Building... {Ui.Pct(work)}"; }
+                else if (t.IsBunker) l3 = $"Garrison {t.garrison.Count}/{t.capacity}: {string.Join(", ", t.garrison.Select(g => g.name))}";
+                else if (t.MaxTier > 1) l3 = $"Tier {t.tier + 1}/{t.MaxTier}";
             }
             else if (e is Building b)
             {

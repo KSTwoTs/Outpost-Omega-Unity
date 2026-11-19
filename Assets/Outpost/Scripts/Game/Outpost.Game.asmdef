@@ -1,0 +1,22 @@
+{
+    "name": "Outpost.Game",
+    "rootNamespace": "",
+    "references": [
+        "Outpost.Content",
+        "Outpost.Sim",
+        "Outpost.View",
+        "Outpost.UI",
+        "Unity.InputSystem",
+        "Unity.RenderPipelines.Core.Runtime",
+        "Unity.RenderPipelines.Universal.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
