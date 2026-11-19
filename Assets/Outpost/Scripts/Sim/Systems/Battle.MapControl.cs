@@ -189,7 +189,11 @@ namespace Outpost.Sim
                     if (D2(e.x, e.y, c.x, c.y) > (26 + e.radius) * (26 + e.radius)) continue;
                     c.alive = false;
                     factions[e.faction].res += c.value;
-                    if (e.faction == "player") fx?.Message("player", $"Supply crate: +{c.value} Supplies");
+                    if (e.faction == "player")
+                    {
+                        fx?.Message("player", $"Supply crate: +{c.value} Supplies");
+                        fx?.Float(new Vector2(c.x, c.y), $"+{c.value} Supplies", "supplies");
+                    }
                     break;
                 }
             }

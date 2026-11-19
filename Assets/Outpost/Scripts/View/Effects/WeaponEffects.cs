@@ -321,6 +321,7 @@ namespace Outpost.View
                     pool.Line(a, b, FxColors.Hot(FxColors.White, 1.3f), 0.35f, 0.05f, 0.3f);
                     pool.Line(b + Up(28f), b, FxColors.A(FxColors.Hot(FxColors.Cyan, 1.2f), 0.1f), 1.6f, 0.3f, 0.4f, FxColors.Hot(FxColors.Cyan, 1.4f));
                     pool.Glow(b, FxColors.Hot(FxColors.White, 2f), 2.5f, 4f, 0.15f);
+                    RtsCamera.ShakeAt(b, 0.2f);
                     break;
                 case "beam":         // Laser: red, thicker and whiter as it ramps up on one target
                 {
@@ -494,6 +495,7 @@ namespace Outpost.View
         /// <summary>A fireball with a flash, shock ring, sparks, smoke, debris and (on the ground) a scorch mark.</summary>
         public void Explosion(Vector3 ground, Color c, float radius, bool scorch = true, bool dirt = false)
         {
+            if (radius >= 2.5f) RtsCamera.ShakeAt(ground, 0.05f * radius);
             var mid = ground + Up(0.4f + radius * 0.35f);
             pool.Glow(mid, FxColors.Hot(FxColors.White, 2f), radius * 1.5f, radius * 2.4f, 0.12f);
             var fire = pool.Glow(mid + Up(radius * 0.2f), FxColors.Hot(c, 1.5f), radius * 1.3f, radius * 2.8f, 0.45f);
@@ -542,6 +544,7 @@ namespace Outpost.View
                 if (alien && !e.flying) GooBurst(ground + Up(0.4f), r, true);
                 else if (alien) { GooBurst(at, r, false); pool.Smoke(at, FxColors.A(FxColors.Smoke, 0.5f), 4, 1f, 1.4f, r); }
                 else Explosion(e.flying ? at : ground, c, r, !e.flying, false);
+                if (r >= 2f) RtsCamera.ShakeAt(ground, 0.08f);
                 if (e.flying)       // the wreck falls trailing fire
                 {
                     var w = pool.Glow(at, FxColors.Hot(c, 1.2f), r * 0.8f, r * 0.3f, 0.7f);
@@ -550,6 +553,8 @@ namespace Outpost.View
                 return;
             }
             float size = e is Tower ? 2.4f : 4f;
+            // Python: shake 0.25 for an HQ / Hive, 0.12 for other buildings
+            RtsCamera.ShakeAt(ground, e is Tower ? 0.25f : e.radius >= 60f ? 0.6f : 0.4f);
             if (alien)
             {
                 GooBurst(ground + Up(0.8f), size, true);

@@ -24,9 +24,37 @@ namespace Outpost.View
         float targetDistance, targetYaw;
         Vector3 targetPos;
 
+        // ------------------------------------------------------------------ camera shake (Python effects.shake)
+        static RtsCamera active;
+        static float trauma;            // 0..1; the shake is trauma squared, so small hits stay small
+        public static float Trauma => trauma;
+        public static RtsCamera Active => active;
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetStatics()
+        {
+            active = null;
+            trauma = 0f;
+        }
+
+        /// <summary>Adds shake (0..1). Effects call ShakeAt so far-away blasts shake less.</summary>
+        public static void Shake(float amount) => trauma = Mathf.Clamp01(trauma + Mathf.Max(0f, amount));
+
+        /// <summary>Shake from something happening at a world point: full strength near the middle of the view,
+        /// none beyond about 75 units. Does nothing without an active camera (edit-mode tests).</summary>
+        public static void ShakeAt(Vector3 at, float amount)
+        {
+            if (active == null) return;
+            var d = at - active.transform.position;
+            d.y = 0f;
+            float k = Mathf.Clamp01(1f - (d.magnitude - 15f) / 60f);
+            if (k > 0f) Shake(amount * k);
+        }
+
         void Start()
         {
             if (cam == null) cam = GetComponentInChildren<Camera>();
+            active = this;
             targetDistance = distance;
             targetYaw = yaw;
             targetPos = transform.position;
@@ -92,6 +120,18 @@ namespace Outpost.View
             targetPos.x = Mathf.Clamp(targetPos.x, boundsMin.x, boundsMax.x);
             targetPos.z = Mathf.Clamp(targetPos.z, boundsMin.y, boundsMax.y);
             Apply(1f - Mathf.Exp(-12f * dt));
+            if (trauma > 0f && cam != null)
+            {
+                float s = trauma * trauma * 1.3f, tm = Time.unscaledTime * 28f;
+                cam.transform.localPosition += new Vector3(Mathf.PerlinNoise(tm, 0.3f) - 0.5f, Mathf.PerlinNoise(0.7f, tm) - 0.5f, Mathf.PerlinNoise(tm, 5.1f) - 0.5f) * 2f * s;
+                cam.transform.localRotation *= Quaternion.Euler((Mathf.PerlinNoise(tm, 9.2f) - 0.5f) * 1.6f * s, (Mathf.PerlinNoise(3.3f, tm) - 0.5f) * 1.6f * s, 0f);
+                trauma = Mathf.Max(0f, trauma - dt * 1.4f);
+            }
+        }
+
+        void OnDestroy()
+        {
+            if (active == this) active = null;
         }
 
         void Apply(float k)

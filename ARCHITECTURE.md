@@ -88,7 +88,7 @@ Sim/
 │  ├─ Battle.cs               now · the battle: lists of everything, Tick, setup, victory
 │  ├─ BattleConfig.cs         M2 · everything that defines one battle: map, size, difficulty, leader,
 │  │                                loadout, mode rules, strains. The only way a battle is created
-│  ├─ IBattleFx.cs            now · split out of Battle.cs; M1.5 added TowerFired and Ability (notifications only)
+│  ├─ IBattleFx.cs            now · split out of Battle.cs; M1.5 added TowerFired, Ability and Float (notifications only)
 │  ├─ GameData.cs             now · reads the JSON data
 │  ├─ NavGrid.cs              now · walkable tiles and pathfinding
 │  ├─ Entity.cs, Unit.cs, Building.cs, Tower.cs, Base.cs, Faction.cs
@@ -145,7 +145,7 @@ View/
 ├─ UnitAnimator.cs       now · ModelRig: swaps a model between its exported poses, aims turret parts, spins rotors
 │                              (which parts move comes from the model pack's index, so there is no rig file)
 ├─ BaseApron.cs          now · the connected base platform
-├─ RtsCamera.cs          now
+├─ RtsCamera.cs          now · also camera shake (Shake / ShakeAt) since M1.5
 ├─ Effects/
 │  ├─ Fx.cs              now · the IBattleFx receiver; hands work to the files below (moved here from View/ at M1.5)
 │  ├─ WeaponEffects.cs   now · muzzle flashes, tracers, projectiles, explosions, beams, lightning, patches, deaths,

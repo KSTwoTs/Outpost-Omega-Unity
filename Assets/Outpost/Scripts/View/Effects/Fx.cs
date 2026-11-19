@@ -28,6 +28,17 @@ namespace Outpost.View
         readonly List<Projectile> shotsDone = new List<Projectile>();
         readonly List<Vector3> nodes = new List<Vector3>(16);
 
+        // status marks (stunned / slowed) on every entity the battle reported, and floating words
+        class StatusMark { public FxPiece stun, stunGlow, slow; }
+        readonly List<Entity> tracked = new List<Entity>();
+        readonly HashSet<Entity> trackedSet = new HashSet<Entity>();
+        readonly Dictionary<Entity, StatusMark> marks = new Dictionary<Entity, StatusMark>();
+        struct FloatText { public Vector3 pos; public string text; public Color color; public float age, life; public int size; }
+        readonly List<FloatText> floats = new List<FloatText>();
+        GUIStyle floatStyle;
+        float clock;
+        public const int MaxFloats = 48;
+
         // context between Sim calls made in one go: the tower that just fired, the unit that just used its ability,
         // and the projectile that just landed (its Impact comes right after)
         Tower firing;
@@ -39,6 +50,9 @@ namespace Outpost.View
         public WeaponEffects Weapons { get { Init(); return weapons; } }
         public AbilityEffects Abilities { get { Init(); return abilities; } }
         public int ShotsInFlight => shots.Count;
+        public int FloatCount => floats.Count;
+        public int StatusMarkCount => marks.Count;
+        public int TrackedCount => tracked.Count;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics()
@@ -51,6 +65,7 @@ namespace Outpost.View
         {
             if (pool != null) return;
             pool = new EffectPool(transform);
+            if (map != null) pool.groundNormal = GroundNormal;
             weapons = new WeaponEffects(pool);
             abilities = new AbilityEffects(pool, weapons);
         }
@@ -60,6 +75,10 @@ namespace Outpost.View
             pool?.Dispose();
             pool = null;
             shots.Clear();
+            marks.Clear();
+            tracked.Clear();
+            trackedSet.Clear();
+            floats.Clear();
         }
 
         public static Material Unlit(Color c)
@@ -131,7 +150,32 @@ namespace Outpost.View
         }
 
         // ------------------------------------------------------------------ IBattleFx
-        public void Spawned(Entity e) => EntityView.Create(e, map, unitsRoot);
+        public void Spawned(Entity e)
+        {
+            EntityView.Create(e, map, unitsRoot);
+            TrackStatus(e);
+        }
+
+        /// <summary>Watches an entity for stun / slow marks until it dies (Spawned does this for everything).</summary>
+        public void TrackStatus(Entity e)
+        {
+            if (e != null && trackedSet.Add(e)) tracked.Add(e);
+        }
+
+        /// <summary>Slope under a point, from the height field sampled r units around it.</summary>
+        Vector3 GroundNormal(Vector3 at, float r)
+        {
+            if (map == null) return Vector3.up;
+            r = Mathf.Clamp(r, 0.5f, 6f);
+            float px = at.x / MapBuilder.Unit, py = -at.z / MapBuilder.Unit, rp = r / MapBuilder.Unit;
+            var xa = MapBuilder.Ground(map, px - rp, py);
+            var xb = MapBuilder.Ground(map, px + rp, py);
+            var za = MapBuilder.Ground(map, px, py + rp);   // game y down = Unity -z
+            var zb = MapBuilder.Ground(map, px, py - rp);
+            var n = Vector3.Cross(zb - za, xb - xa).normalized;
+            if (n.y < 0) n = -n;
+            return n.y > 0.2f ? n : Vector3.up;
+        }
 
         public void Died(Entity e)
         {
@@ -263,6 +307,21 @@ namespace Outpost.View
             abilities.Use(u, id, Muzzle(u), Ground(u.Pos), Ground(at), r);
         }
 
+        /// <summary>Words that float up and fade (Python floating_text / number): RANK UP, Bio-Lab +16, crates.</summary>
+        public void Float(Vector2 at, string text, string kind)
+        {
+            if (string.IsNullOrEmpty(text)) return;
+            if (floats.Count >= MaxFloats) floats.RemoveAt(0);
+            floats.Add(new FloatText
+            {
+                pos = W(at, kind == "rank" ? 3.4f : 2.4f),
+                text = text,
+                color = FxColors.Energy,
+                life = kind == "number" ? 1.0f : 1.6f,
+                size = kind == "supplies" ? 24 : kind == "rank" ? 22 : 18,
+            });
+        }
+
         // ------------------------------------------------------------------ helpers for the view and input layers
         /// <summary>A glow that fades (generic flash).</summary>
         public void Flash(Vector3 at, Color c, float size, float life)
@@ -310,8 +369,109 @@ namespace Outpost.View
                 weapons.ProjectileEnd(shots[p]);
                 shots.Remove(p);
             }
+            clock += dt;
+            UpdateStatus();
+            for (int i = floats.Count - 1; i >= 0; i--)
+            {
+                var f = floats[i];
+                f.age += dt;
+                if (f.age >= f.life) floats.RemoveAt(i);
+                else floats[i] = f;
+            }
             weapons.Tick(dt);
             pool.Tick(dt);
+        }
+
+        /// <summary>A spinning yellow star over stunned units and towers (sonic, chrono, hacker, stomp), a pale blue
+        /// ring under slowed ones (cryo, gravity, tar, magnet). Held pieces, one set per entity, handed back when the
+        /// status ends, the entity dies or it is hidden.</summary>
+        void UpdateStatus()
+        {
+            for (int i = tracked.Count - 1; i >= 0; i--)
+            {
+                var e = tracked[i];
+                bool gone = !e.alive;
+                var v = e.view as EntityView;
+                bool hasView = v != null;
+                bool hidden = gone || (hasView && v.Dying) || (EntityView.IsHidden != null && EntityView.IsHidden(e)) ||
+                              (e is Unit bu && bu.inBunker != null);
+                bool stun = !hidden && e.stunT > 0.05f;
+                bool slow = !hidden && e.slowT > 0.05f && e.slow >= 0.2f;
+                marks.TryGetValue(e, out var m);
+                if (m != null || stun || slow)
+                {
+                    if (m == null) marks[e] = m = new StatusMark();
+                    var at = hasView ? v.transform.position : Body(e.Pos, e.flying) - Vector3.up * 0.8f;
+                    float r = Mathf.Max(0.8f, e.radius * MapBuilder.Unit);
+                    float head = hasView ? v.topHeight + 0.9f : 2.6f;
+                    if (stun)
+                    {
+                        if (m.stun == null)
+                        {
+                            m.stun = pool.Quad(FxFacing.Billboard, FxTex.Star, FxBlend.Add, at, FxColors.Hot(FxColors.Energy, 1.6f), r * 1.7f, r * 1.7f, 1f);
+                            m.stun.held = true;
+                            m.stun.spin = 220f;
+                            m.stunGlow = pool.Glow(at, FxColors.A(FxColors.Energy, 0.6f), r * 1.8f, r * 1.8f, 1f);
+                            m.stunGlow.held = true;
+                        }
+                        m.stun.pos = m.stunGlow.pos = at + Vector3.up * head;
+                    }
+                    else if (m.stun != null)
+                    {
+                        pool.Release(m.stun);
+                        pool.Release(m.stunGlow);
+                        m.stun = m.stunGlow = null;
+                    }
+                    if (slow)
+                    {
+                        if (m.slow == null)
+                        {
+                            m.slow = pool.Flat(FxTex.Ring, FxBlend.Add, at, FxColors.Hot(FxColors.Cryo, 1.2f), r * 2.8f, r * 2.8f, 1f);
+                            m.slow.held = true;
+                            m.slow.spin = 40f;
+                        }
+                        m.slow.pos = at + Vector3.up * 0.2f;
+                        m.slow.color.a = 0.55f + 0.3f * Mathf.Sin(clock * 6f + i);
+                    }
+                    else if (m.slow != null)
+                    {
+                        pool.Release(m.slow);
+                        m.slow = null;
+                    }
+                    if (m.stun == null && m.slow == null) marks.Remove(e);
+                }
+                if (gone)
+                {
+                    tracked[i] = tracked[tracked.Count - 1];
+                    tracked.RemoveAt(tracked.Count - 1);
+                    trackedSet.Remove(e);
+                }
+            }
+        }
+
+        void OnGUI()
+        {
+            if (floats.Count == 0 || Event.current.type != EventType.Repaint) return;
+            var cam = Camera.main;
+            if (cam == null) return;
+            if (floatStyle == null)
+                floatStyle = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold };
+            float scale = Screen.height / 1080f;
+            var old = GUI.color;
+            foreach (var f in floats)
+            {
+                float k = f.age / f.life;
+                var sp = cam.WorldToScreenPoint(f.pos + Vector3.up * (2.5f * k));
+                if (sp.z <= 0) continue;
+                float a = f.age < 0.12f ? f.age / 0.12f : k > 0.6f ? (1f - k) / 0.4f : 1f;
+                floatStyle.fontSize = Mathf.Max(10, Mathf.RoundToInt(f.size * scale));
+                var r = new Rect(sp.x - 150, Screen.height - sp.y - 20, 300, 40);
+                GUI.color = new Color(0f, 0f, 0f, a * 0.8f);
+                GUI.Label(new Rect(r.x + 2, r.y + 2, r.width, r.height), f.text, floatStyle);
+                GUI.color = new Color(f.color.r, f.color.g, f.color.b, a);
+                GUI.Label(r, f.text, floatStyle);
+            }
+            GUI.color = old;
         }
 
         void LateUpdate() => Tick(Time.deltaTime);

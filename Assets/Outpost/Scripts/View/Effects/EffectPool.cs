@@ -42,6 +42,7 @@ namespace Outpost.View
         public float ease = 2f;                 // size easing power (1 linear, 2 fast then slow)
         public Color color, color2;             // color2: the far end of a line
         public Vector3 pos, vel;
+        public Vector3 normal = Vector3.up;     // flat pieces lie on a plane with this normal (decals follow slopes)
         public float drag;
         public Vector3[] points;                // line points
         public int pointCount;
@@ -60,6 +61,9 @@ namespace Outpost.View
         public readonly Transform root;
         /// <summary>Billboards face this point when set (edit-mode stills); otherwise the main camera.</summary>
         public Vector3? viewFrom;
+        /// <summary>Ground slope under a point (position, radius) -> normal. Set by Fx when there is a map;
+        /// flat alpha pieces (scorch, goo, acid, tar) are tilted to it so they lie on hillsides.</summary>
+        public System.Func<Vector3, float, Vector3> groundNormal;
         public int Created { get; private set; }
         public int LiveCount => live.Count;
         public int FreeCount => quadFree.Count + lineFree.Count;
@@ -111,6 +115,8 @@ namespace Outpost.View
             p.size1 = size1;
             p.life = p.total = Mathf.Max(0.01f, life);
             p.angle = facing == FxFacing.Flat ? UnityEngine.Random.Range(0f, 360f) : 0f;
+            if (facing == FxFacing.Flat && blend == FxBlend.Alpha && groundNormal != null)
+                p.normal = groundNormal(at, Mathf.Max(size0, size1) * 0.4f);
             Apply(p, Eye());
             return p;
         }
@@ -215,6 +221,7 @@ namespace Outpost.View
             p.fadeOut = 1f;
             p.ease = 2f;
             p.vel = Vector3.zero;
+            p.normal = Vector3.up;
             p.width0 = p.width1 = 0.1f;
         }
 
@@ -421,7 +428,8 @@ namespace Outpost.View
             float s = Mathf.Max(0.001f, Mathf.Lerp(p.size0, p.size1, e));
             p.t.position = p.pos;
             p.t.localScale = new Vector3(s, s, s);
-            if (p.facing == FxFacing.Flat) p.t.rotation = Quaternion.Euler(90f, p.angle, 0f);
+            if (p.facing == FxFacing.Flat)
+                p.t.rotation = (p.normal == Vector3.up ? Quaternion.identity : Quaternion.FromToRotation(Vector3.up, p.normal)) * Quaternion.Euler(90f, p.angle, 0f);
             else
             {
                 var d = p.pos - eye;

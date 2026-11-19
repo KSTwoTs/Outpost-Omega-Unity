@@ -25,5 +25,8 @@ namespace Outpost.Sim
         void TowerFired(Tower t, Entity target);
         /// <summary>A unit just used its ability (id from rts.json) aimed at a point. Pure notification for the view.</summary>
         void Ability(Unit u, string id, Vector2 at);
+        /// <summary>Words that float up from a spot (RANK UP, +16, +120 Supplies). kind: rank / number / supplies.
+        /// Pure notification for the view.</summary>
+        void Float(Vector2 at, string text, string kind);
     }
 }

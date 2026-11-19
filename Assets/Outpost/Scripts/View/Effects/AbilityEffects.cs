@@ -124,6 +124,7 @@ namespace Outpost.View
                     }
                     break;
                 case "stomp":             // Python: energy ring over the radius + shake: shockwave, dust, a cracked patch
+                    RtsCamera.ShakeAt(ground, 0.35f);
                     GroundRing(ground, FxColors.Energy, radius * 0.2f, radius, 0.4f, 1.5f);
                     GroundRing(ground, FxColors.White, radius * 0.1f, radius * 0.75f, 0.35f, 1.0f).delay = 0.06f;
                     pool.Chunks(ground + Up(0.2f), FxColors.Dirt, 16, 7f, 0.7f, 0.22f);
@@ -177,7 +178,8 @@ namespace Outpost.View
                     pool.Smoke(ground + Up(0.3f), FxColors.Dust, 5, 2f, 0.9f, 1.1f, r * 0.3f);
                     pool.Chunks(ground, FxColors.Dirt, 6, 4.5f, 0.5f, 0.18f);
                     break;
-                case "burrow":            // coming up out of the ground
+                case "burrow":            // coming up out of the ground (Python: dirt burst + shake 0.1)
+                    RtsCamera.ShakeAt(ground, 0.15f);
                     pool.Chunks(ground + Up(0.2f), FxColors.Dirt, 18, 7f, 0.7f, 0.24f);
                     pool.Smoke(ground + Up(0.3f), FxColors.Dust, 8, 2f, 1.2f, 1.3f, r * 0.4f);
                     GroundRing(ground, FxColors.Dirt, r * 0.3f, r, 0.5f, 1.0f);
@@ -237,6 +239,7 @@ namespace Outpost.View
             pool.Line(ground + Up(40f), ground, FxColors.A(FxColors.Hot(c, 1.3f), 0.1f), Mathf.Max(1f, r * 0.4f), 0.4f, 0.5f, FxColors.Hot(c, 1.6f));
             weapons.Explosion(ground, c, Mathf.Max(1.5f, r * 0.6f), true, false);
             GroundRing(ground, FxColors.White, r * 0.2f, r, 0.5f, 1.4f);
+            RtsCamera.ShakeAt(ground, 0.7f);
         }
     }
 }

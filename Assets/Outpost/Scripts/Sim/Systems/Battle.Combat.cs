@@ -77,6 +77,7 @@ namespace Outpost.Sim
                     k.maxHp = k.memberHp * k.squad;
                     k.hp = k.maxHp * ratio;
                     k.rank = rank;
+                    if (k.faction == "player") fx?.Float(k.Pos, "RANK UP", "rank");
                 }
             }
             if (src != null && factions.TryGetValue(src.faction, out var kf)) kf.kills++;

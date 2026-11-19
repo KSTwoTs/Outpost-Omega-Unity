@@ -122,7 +122,9 @@ namespace Outpost.Sim
             {
                 if (!t.alive || !t.Done || t.behavior != "biolab" || !Hostile(t.faction, dead.faction)) continue;
                 if (D2(t.x, t.y, dead.x, dead.y) > t.range * t.range) continue;
-                factions[t.faction].res += GameData.F(t.stats, "per_kill", 2) * 8;
+                float gain = GameData.F(t.stats, "per_kill", 2) * 8;
+                factions[t.faction].res += gain;
+                fx?.Float(dead.Pos, "+" + Mathf.RoundToInt(gain), "number");
             }
         }
 

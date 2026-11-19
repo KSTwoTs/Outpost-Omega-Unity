@@ -108,6 +108,8 @@ namespace Outpost.EditorTools
         [MenuItem("Outpost/Effects Test/Stills Page 2", priority = 41)] static void FxPage1() => Debug.Log(EffectsStills(1));
         [MenuItem("Outpost/Effects Test/Stills Page 3", priority = 42)] static void FxPage2() => Debug.Log(EffectsStills(2));
         [MenuItem("Outpost/Effects Test/Stills Page 4", priority = 43)] static void FxPage3() => Debug.Log(EffectsStills(3));
+        [MenuItem("Outpost/Effects Test/Stills Page 5 (status marks)", priority = 44)] static void FxPage4() => Debug.Log(EffectsStills(4));
+        [MenuItem("Outpost/Effects Test/Status, Float and Shake Check", priority = 47)] static void FxStatus() => Debug.Log(EffectsStatusCheck());
         [MenuItem("Outpost/Effects Test/Clear", priority = 45)] static void FxClear() => EffectsTestClear();
         [MenuItem("Outpost/Effects Test/Pool Stress Test", priority = 46)] static void FxStress() => Debug.Log(EffectsPoolStress(1800, 12));
 
@@ -223,6 +225,43 @@ namespace Outpost.EditorTools
                     cases.Add(new FxCase { name = "player tower destroyed", age = 0.2f, spawn = () => fx.Died(tower("pulse", "player", p7)) });
                     cases.Add(new FxCase { name = "bunker firing", age = 0.04f, spawn = () => { var tw = tower("bunker", "player", p8 - right); fx.Shot(tw, tw.Pos, p8 + right, "player", 3); } });
                     break;
+                case 4:
+                {
+                    System.Func<string, Vector2, float, float, Outpost.Sim.Unit> marked = (kind, at, stun, slow) =>
+                    {
+                        var u = unit(kind, "alien", at);
+                        u.stunT = stun;
+                        u.slow = slow;
+                        u.slowT = slow > 0 ? 1f : 0f;
+                        fx.TrackStatus(u);
+                        return u;
+                    };
+                    cases.Add(new FxCase { name = "stunned brute (star overhead)", age = 0.3f, spawn = () => marked("brutes", p0, 2f, 0f) });
+                    cases.Add(new FxCase { name = "slowed brute (frost ring)", age = 0.3f, spawn = () => marked("brutes", p1, 0f, 0.4f) });
+                    cases.Add(new FxCase { name = "stunned and slowed wrecker", age = 0.3f, spawn = () => marked("wrecker", p2, 2f, 0.45f) });
+                    cases.Add(new FxCase { name = "sonic tower stuns three", age = 0.25f, spawn = () =>
+                    {
+                        var tw = tower("sonic", "player", p3 - right);
+                        fx.TowerFired(tw, null);
+                        fx.Ring(tw.Pos, tw.range, "energy");
+                        for (int n = 0; n < 3; n++) marked("skitters", p3 + new Vector2(40 * n - 20, 30 * (n % 2)), 0.7f, 0f);
+                    } });
+                    cases.Add(new FxCase { name = "cryo tower slows three", age = 0.5f, spawn = () =>
+                    {
+                        var tw = tower("cryo", "player", p4 - right);
+                        fx.TowerFired(tw, null);
+                        for (int n = 0; n < 3; n++) marked("skitters", p4 + new Vector2(40 * n - 20, 30 * (n % 2)), 0f, 0.4f);
+                    } });
+                    cases.Add(new FxCase { name = "chrono tower freezes a brute", age = 0.15f, spawn = () =>
+                    {
+                        var tw = tower("chrono", "player", p5 - right);
+                        var en = marked("brutes", p5 + right, 2f, 0f);
+                        fx.TowerFired(tw, en);
+                        fx.Shot(tw, tw.Pos, en.Pos, "player", 1);
+                        fx.Ring(en.Pos, 22, "energy");
+                    } });
+                    break;
+                }
                 default:
                 {
                     System.Action<string, string, Vector2, Vector2> ab = (kind, id, at, aim) =>
@@ -267,6 +306,57 @@ namespace Outpost.EditorTools
             sb.AppendLine($"page {page + 1}: cells left to right, top row first (top row = farthest from the camera)");
             for (int n = 0; n < cases.Count; n++) sb.AppendLine($"  {n + 1}. {cases[n].name} @ {cases[n].age:0.00} s");
             sb.AppendLine($"pool: live {fx.Pool.LiveCount}, created {fx.Pool.Created}, particles {fx.Pool.Particles}, repeaters {fx.Pool.RepeaterCount}");
+            return sb.ToString();
+        }
+
+        /// <summary>Checks the status marks, floating words, decal slopes and camera shake with numbers.</summary>
+        public static string EffectsStatusCheck()
+        {
+            var sb = new System.Text.StringBuilder();
+            var fx = NewTestFx(false);
+            var u = new Outpost.Sim.Unit("brutes", "alien", 5000, 0);
+            fx.TrackStatus(u);
+            fx.Tick(0.1f);
+            sb.AppendLine($"idle unit: marks {fx.StatusMarkCount}, live pieces {fx.Pool.LiveCount}");
+            u.stunT = 1f; u.slow = 0.4f; u.slowT = 1f;
+            fx.Tick(0.1f);
+            sb.AppendLine($"stunned + slowed: marks {fx.StatusMarkCount}, live pieces {fx.Pool.LiveCount} (expect 1 mark, 3 pieces)");
+            u.stunT = 0f;
+            fx.Tick(0.1f);
+            sb.AppendLine($"stun over: live pieces {fx.Pool.LiveCount} (expect 1)");
+            u.alive = false;
+            fx.Tick(0.1f);
+            sb.AppendLine($"dead: marks {fx.StatusMarkCount}, tracked {fx.TrackedCount}, live pieces {fx.Pool.LiveCount} (expect 0, 0, 0)");
+            for (int i = 0; i < 100; i++) fx.Float(new Vector2(5000, 0), "+16", "number");
+            sb.AppendLine($"100 floats: kept {fx.FloatCount} (cap {Outpost.View.Fx.MaxFloats})");
+            for (int i = 0; i < 40; i++) fx.Tick(0.05f);
+            sb.AppendLine($"after 2 s: floats {fx.FloatCount} (expect 0)");
+            EffectsTestClear();
+            // decals on a real slope: build a mapped Fx and compare a scorch's normal with the ground
+            var map = Outpost.Content.MapBuilder.Load("dune_sea");
+            var mf = NewTestFx(false);
+            mf.map = map;
+            float best = 0f; Vector2 steep = Vector2.zero;
+            for (int y = 200; y < map.px_h - 200; y += 60)
+                for (int x = 200; x < map.px_w - 200; x += 60)
+                {
+                    float d = Mathf.Abs(Outpost.Content.MapBuilder.Ground(map, x + 30, y).y - Outpost.Content.MapBuilder.Ground(map, x - 30, y).y);
+                    if (d > best) { best = d; steep = new Vector2(x, y); }
+                }
+            mf.Impact(steep, "player", 50, false);
+            Vector3 n = Vector3.up;
+            foreach (Transform c in mf.Pool.root)
+                if (c.gameObject.activeSelf && c.name == "fx_quad")
+                {
+                    var mr = c.GetComponent<MeshRenderer>();
+                    if (mr.sharedMaterial.name.StartsWith("fx_Disc_Alpha")) n = c.rotation * Vector3.back;
+                }
+            sb.AppendLine($"scorch on the steepest spot found ({best:0.00} units of rise over 6): tilt {Vector3.Angle(Vector3.up, n):0.0} deg from flat");
+            EffectsTestClear();
+            // shake needs an active RtsCamera (play mode); in edit mode it must do nothing
+            float before = Outpost.View.RtsCamera.Trauma;
+            Outpost.View.RtsCamera.ShakeAt(Vector3.zero, 0.5f);
+            sb.AppendLine($"ShakeAt with no camera: trauma {before:0.00} -> {Outpost.View.RtsCamera.Trauma:0.00} (expect no change)");
             return sb.ToString();
         }
 
