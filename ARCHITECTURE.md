@@ -2,6 +2,8 @@
 
 This is the target layout for the whole project and the rules that keep it tidy. Files marked **now** exist today; everything else is tagged with the roadmap step that creates it (M1.3 = Milestone 1, step 3). When a step lands, its files go where this document says, and the document is updated if the plan changes.
 
+**Placeholders (Nov 18).** Every planned script below already exists as an empty placeholder: a header comment saying what it will hold and which step fills it, and an empty namespace, so it compiles to nothing. A step fills its placeholder in rather than creating the file. Code that moves out of `Battle.cs`, `Entities.cs`, `AlienAI.cs` and `MapBuilder.cs` goes into the matching placeholder in the housekeeping pass; the existing files move into `Sim/Core/` and `Sim/AI/` then. Empty asset folders hold a `.gitkeep` so git keeps them. Not created yet: the asmdefs (housekeeping pass), the scenes `Boot.unity` and `MainMenu.unity` (made in the editor at M2), `Battle.unity` (a rename of Skirmish.unity), `audio.json` (M4), and anything for Classic Defense or rigged animation (both undecided). Placeholders in `Input/` use the `Outpost.View` namespace like `CommandInput` does, because a namespace called `Outpost.Input` would hide Unity's `Input` class inside the project.
+
 ## The five layers
 
 Code only ever depends downward in this list. That one rule is what lets the battle be tested without graphics and lets every mode reuse the same battle.
