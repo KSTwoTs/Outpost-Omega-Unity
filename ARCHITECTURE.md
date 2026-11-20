@@ -4,6 +4,8 @@ This is the target layout for the whole project and the rules that keep it tidy.
 
 **Placeholders (Nov 18).** Every planned script below already exists as an empty placeholder: a header comment saying what it will hold and which step fills it, and an empty namespace, so it compiles to nothing. A step fills its placeholder in rather than creating the file. The housekeeping pass (Nov 19) moved the code out of `Battle.cs`, `Entities.cs`, `AlienAI.cs` and `MapBuilder.cs` into the matching placeholders and moved the remaining files into `Sim/Core/` and `Sim/AI/`. Empty asset folders hold a `.gitkeep` so git keeps them. Not created yet: the scenes `Boot.unity` and `MainMenu.unity` (made in the editor at M2), `Battle.unity` (a rename of Skirmish.unity), `audio.json` (M4), and anything for Classic Defense or rigged animation (both undecided). Placeholders in `Input/` use the `Outpost.View` namespace like `CommandInput` does, because a namespace called `Outpost.Input` would hide Unity's `Input` class inside the project.
 
+**Milestones (Nov 20).** Six milestones: M1 Skirmish, M2 front end, M3 map generator plus campaign and Siege Run systems (Siege Run battles on generated maps), M4 sound, performance and smaller modes, M5 art, maps and levels (final art and animation, reactive world, hand-made maps, Map Builder on the M3 generator, campaign levels), M6 balance and release. Until M5 the game keeps today's models, the four Medium maps and placeholder looks.
+
 ## The five layers
 
 Code only ever depends downward in this list. That one rule is what lets the battle be tested without graphics and lets every mode reuse the same battle.
@@ -20,7 +22,7 @@ Rules that follow from it:
 
 - **The Sim never knows it is being watched.** It talks to the outside only through `IBattleFx` (things happened: a shot, a death, a message). Views and the HUD read Sim objects but change them only by calling `Battle` methods (`OrderMove`, `QueueUnit`, `UseAbility`...).
 - **A mode is a configuration plus an optional director, not a new battle.** Skirmish, a campaign operation, a Siege Run node and Last Stand all create the same `Battle` from a `BattleConfig`; the campaign adds a `Mission`, Siege Run adds strains and a `BossDirector`.
-- **Numbers live in data files, not code.** Balance stays in `StreamingAssets/Outpost/data/*.json`, shared with the Python game until the balance pass in Milestone 5.
+- **Numbers live in data files, not code.** Balance stays in `StreamingAssets/Outpost/data/*.json`, shared with the Python game until the balance pass in Milestone 6.
 - **Each layer is its own assembly** (`.asmdef`, since the housekeeping pass on Nov 19), so the compiler enforces the table above and Sim changes do not recompile the UI: `Outpost.Content` (Scripts/Content), `Outpost.Sim` (Scripts/Sim, references Content), `Outpost.View` (Scripts/View, plus Scripts/Input through `Input/Outpost.View.asmref`; references Content, Sim, Input System, URP), `Outpost.UI` (Content, Sim, View, Input System), `Outpost.Game` (everything below, Input System, URP), `Outpost.Sandbox` (Content, Sim, View, URP) and `Outpost.Editor` (Editor/, Editor platform only, references all of them). Newtonsoft JSON needs no entry: its package DLL is auto-referenced. A new folder of scripts inside a layer joins that layer's assembly automatically; a new layer or a new upward use needs the asmdef changed (and should not happen).
 
 ## Folder tree
@@ -37,8 +39,8 @@ Outpost-Omega-Unity/
    ├─ StreamingAssets/Outpost/     shipped game content, read at run time
    │  ├─ data/                     now · rts.json, towers.json, commanders.json, campaign.json,
    │  │                                  rts_run.json, story.json ... (copied from the Python game)
-   │  ├─ maps/<map id>/            now · 4 maps · M2: all 8 maps x 3 sizes + 4 hand-made
-   │  │                                  M3: campaign and Siege Run maps
+   │  ├─ maps/<map id>/            now · 4 maps exported from Python · M3: generated in Unity instead · M5: the 4 hand-made maps
+   │  │                                  M5: campaign levels and Siege Run boss arenas
    │  ├─ models.pak.json / .bin    now · every unit, building and turret as one solid mesh
 │  ├─ models_anim.pak.json/.bin now · units and turrets again, with walk and attack poses and
 │  │                                  separate turrets, rotors and turret heads (these win over models.pak)
@@ -74,8 +76,8 @@ Content/
 ├─ MapData.cs           now · the map data classes (MapData, MapData.SiteData), split out of MapBuilder.cs
 ├─ ModelLibrary.cs      now · loads the model pak, spawns a model by name
 ├─ PortraitLibrary.cs   now · unit and building portraits for the HUD (photographed once from the models)
-├─ MapGenerator.cs      M4 · the Python map generator rebuilt in C# (needed by the Map Builder)
-└─ TerrainPainter.cs    M4 · bakes the painted ground for generated and user-made maps
+├─ MapGenerator.cs      M3 · the Python map generator (rts/world.py) rebuilt in C#: seed + theme + size -> map, with rules for what can form; used by Siege Run, Skirmish and the Map Builder
+└─ TerrainPainter.cs    M3 · bakes the painted ground for generated and user-made maps
 ```
 
 ### Sim (layer 2)
@@ -157,9 +159,9 @@ View/
 │  ├─ FogView.cs         now · draws the fog of war (sheet over the ground, one texel per tile)
 │  ├─ Markers.cs         now · health, shield and progress bars over units, rank stars, relay capture bars, the drag box
 │  ├─ MapProps.cs        now · base site pads, base aprons, relay towers (by owner), supply crates
-│  ├─ Creep.cs           M4 · creep spreading around alien bases
-│  ├─ Decals.cs          M4 · craters, scorch marks, tracks
-│  └─ Weather.cs         M4
+│  ├─ Creep.cs           M5 · creep spreading around alien bases
+│  ├─ Decals.cs          M5 · craters, scorch marks, tracks
+│  └─ Weather.cs         M5
 └─ Audio/
    ├─ BattleAudio.cs     M4 · plays sounds for IBattleFx events
    └─ Music.cs           M4
@@ -204,7 +206,7 @@ UI/
 │  └─ TechLabScreen.cs
 ├─ Modes/                     M4
 │  ├─ CommandModesScreen.cs
-│  └─ MapBuilderScreen.cs
+│  └─ MapBuilderScreen.cs   M5
 └─ Shared/
    └─ Ui.cs                   now · element helpers (boxes, text, buttons, bars, portraits) and how
                                     numbers and times are written
@@ -220,7 +222,7 @@ Game/
 ├─ ModeRunner.cs          M3 · attaches the right director (Mission, SiegeRun node, LastStand...) to a session
 ├─ SaveData.cs            M2 · the save file: records, unlocks, Commander, loadout, campaign, run in progress
 ├─ Settings.cs            M2 · video, audio, key bindings
-└─ MapBuilder/            M4 · the in-game map editor's tools (paint, place, mirror, save, test)
+└─ MapBuilder/            M5 · the in-game map editor's tools (paint, place, mirror, save, test)
 ```
 
 Saves and user-made maps are written to the player's own data folder (`Application.persistentDataPath`), never into the game folder: `save.json`, `settings.json`, `maps/<name>/`.
@@ -232,9 +234,9 @@ Editor/
 ├─ OutpostMenu.cs       now · the Outpost menu; Effects Test (edit-mode stills of every effect, pool stress test)
 ├─ HeadlessMatch.cs     now · full matches without graphics, for checking rules changes; scripted players
 │                               efficient / steady / casual / idle and BalanceTable() for the difficulty check (M1.9)
-├─ ParityCheck.cs       M5 · runs the same scripted fights as the Python game and compares
+├─ ParityCheck.cs       M6 · runs the same scripted fights as the Python game and compares
 ├─ ContentImport.cs     M2 · one click to re-run the Python export for data, maps or models
-└─ BuildTools.cs        M5 · makes the Windows build
+└─ BuildTools.cs        M6 · makes the Windows build
 ```
 
 ## Non-code assets
@@ -243,7 +245,7 @@ Editor/
 Assets/Outpost/
 ├─ Art/
 │  ├─ Materials/     M1.2 · shared materials for the models (today they are made in code)
-│  ├─ Shaders/       now · FxAdditive / FxAlpha (effects) · team color and glow (optional, not started; was M1.8) · M4 creep and decals
+│  ├─ Shaders/       now · FxAdditive / FxAlpha (effects) · M5 · team color and glow, creep and decals
 │  ├─ Effects/       M1.5 · empty on purpose: effect textures are drawn in code (EffectPool.MakeTexture);
 │  │                        hand-made textures or particle prefabs go here if the look needs them later
 │  └─ Icons/         M2 · ability, order, research and resource icons (portraits are made at run time)
@@ -258,9 +260,9 @@ Assets/Outpost/
 
 ## Where the content comes from
 
-Models, maps and data are produced from the Python project and written into `StreamingAssets/Outpost/`. That stays true until M4, when the map generator is rebuilt in Unity; the sculpting tools for models stay in Python for good.
+Models, maps and data are produced from the Python project and written into `StreamingAssets/Outpost/`. Maps stop coming from Python at M3, when the map generator is rebuilt in Unity; the sculpting tools for models stay in Python for good.
 
-**The export script.** `tools/export_unity.py` in the Python project was rewritten on Nov 12 (the original was never saved there). `models` turns the sculpts into meshes: every unit in up to three poses (standing, mid-step, attacking), with vehicle turrets, rotors and the heads of base turrets exported as separate parts around their own pivots. `data` copies the data files. `maps` is not rewritten yet; it comes back at M2, when all maps and sizes are exported. Buildings can be re-exported with `models buildings` but still come from the original pack.
+**The export script.** `tools/export_unity.py` in the Python project was rewritten on Nov 12 (the original was never saved there). `models` turns the sculpts into meshes: every unit in up to three poses (standing, mid-step, attacking), with vehicle turrets, rotors and the heads of base turrets exported as separate parts around their own pivots. `data` copies the data files. `maps` is not rewritten yet; it is no longer needed once the generator exists (M3); the 4 hand-made maps are brought over at M5. Buildings can be re-exported with `models buildings` but still come from the original pack.
 
 ## How one battle fits together
 
