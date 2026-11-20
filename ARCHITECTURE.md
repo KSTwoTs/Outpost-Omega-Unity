@@ -230,7 +230,8 @@ Saves and user-made maps are written to the player's own data folder (`Applicati
 ```
 Editor/
 ├─ OutpostMenu.cs       now · the Outpost menu; Effects Test (edit-mode stills of every effect, pool stress test)
-├─ HeadlessMatch.cs     now · full matches without graphics, for checking rules changes
+├─ HeadlessMatch.cs     now · full matches without graphics, for checking rules changes; scripted players
+│                               efficient / steady / casual / idle and BalanceTable() for the difficulty check (M1.9)
 ├─ ParityCheck.cs       M5 · runs the same scripted fights as the Python game and compares
 ├─ ContentImport.cs     M2 · one click to re-run the Python export for data, maps or models
 └─ BuildTools.cs        M5 · makes the Windows build

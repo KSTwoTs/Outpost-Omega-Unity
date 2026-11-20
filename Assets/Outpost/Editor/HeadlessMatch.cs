@@ -19,7 +19,8 @@ namespace Outpost.EditorTools
     public static class HeadlessMatch
     {
         /// <summary>
-        /// player: "efficient" (good build order, mixed army, research, attacks at 7 minutes),
+        /// player: "efficient" (plays the economy like the alien AI, expands, takes relays, defends, attacks
+        /// with a big army and pulls back when beaten), "steady" (the same on one base: no expansions or relays),
         /// "casual" (slow, Marines only, never attacks) or "idle" (does nothing).
         /// </summary>
         public static string Run(string mapId = "dune_sea", string difficulty = "Normal", string player = "efficient",
@@ -46,11 +47,11 @@ namespace Outpost.EditorTools
             string[] order = player == "efficient" ? new[] { "barracks", "supply", "reactor", "depot" }
                 : player == "casual" ? new[] { "barracks" } : new string[0];
             int oi = 0, lastWave = 0, lastLog = -1, heroDeaths = 0, lastRaids = 0, lastScouts = 0;
-            int buys = 0;
-            string wantBar = null;
             float next = 0;
-            bool attacked = false, heroWas = true;
+            bool heroWas = true;
             var rally = hp + dir * 260;
+            var brain = player == "efficient" ? new Efficient(b, home, sb)
+                : player == "steady" ? new Efficient(b, home, sb) { oneBase = true } : null;
             while (b.winner == null && b.time < maxTime && sw.ElapsedMilliseconds < 20000)
             {
                 b.Tick(0.05f);
@@ -62,109 +63,25 @@ namespace Outpost.EditorTools
                 next = b.time + (player == "efficient" ? 1f : 4f);
                 var P = b.Player;
                 var army = b.units.Where(u => u.alive && u.faction == "player").ToList();
-                MapData.SiteData expandSite = null;
 
-                if (player != "idle")
+                if (brain != null)
                 {
-                    if (oi < order.Length && P.res >= b.BuildCost(order[oi]) && b.FreeSlot(home) >= 0 && b.Build(home, order[oi]) == null) oi++;
-                    if (player == "efficient") Towers(b, home, oi >= 2);
-                    else if (oi >= 2 && b.time > 120 && P.res > 400 && b.FreeSocket(home) >= 0 && home.sockets.Count(s => s != null) < 2)
-                        b.BuildTower(home, "pulse");
-                    // the efficient player holds back on units while it saves for its next building
-                    bool saving = player == "efficient" && oi < order.Length && army.Count >= 3 + oi;
-                    if (player == "efficient" && oi >= order.Length)
-                    {
-                        // a good player expands: up to three bases, each filled with Supply Pads first
-                        var mine = b.bases.Where(x => x.Alive && x.faction == "player").ToList();
-                        foreach (var bs in mine)
-                        {
-                            if (bs == home || !bs.hq.Done || bs.slots.Count(x => x != null && x.kind == "supply") >= 3 || b.FreeSlot(bs) < 0) continue;
-                            if (b.Build(bs, "supply") != null && army.Count >= 6) saving = true;
-                            break;
-                        }
-                        expandSite = b.time > 200 && mine.Count < 3
-                            ? b.FreeSites().Where(x => !b.wildSites.Contains(x.id)).OrderBy(x => (new Vector2(x.x, x.y) - hp).sqrMagnitude).FirstOrDefault()
-                            : null;
-                        if (expandSite != null && army.Count >= 6) saving = true;
-                    }
-                    var idle = b.buildings.Where(x => x.alive && x.faction == "player" && x.Done && x.queue.Count == 0).ToList();
-                    foreach (var bl in idle) if (bl.trains.Length > 0) bl.rally = rally;
-                    if (player == "casual")
-                    {
-                        foreach (var bl in idle)
-                            if (bl.trains.Length > 0 && P.res > 250) b.QueueUnit(bl, "marines");
-                    }
-                    else if (!saving)
-                    {
-                        // purchases take turns so cheap Marines don't starve everything else:
-                        // barracks, barracks, depot, barracks, barracks, research
-                        int turn = buys % 6;
-                        var bar = idle.FirstOrDefault(x => x.kind == "barracks");
-                        var dep = b.buildings.FirstOrDefault(x => x.alive && x.faction == "player" && x.kind == "depot" && x.Done);
-                        string err = null;
-                        if (turn == 5)
-                        {
-                            Building lab = null;
-                            string rid = null;
-                            foreach (var bl in b.buildings)
-                            {
-                                if (!bl.alive || bl.faction != "player" || !bl.Done || bl.Research == null || bl.queue.Count >= 5) continue;
-                                foreach (var kv in bl.Research)
-                                {
-                                    if (P.research.Contains(kv.Key) || P.researching.Contains(kv.Key)) continue;
-                                    if (P.tech < GameData.I(kv.Value, "tech", 1)) continue;
-                                    string after = GameData.S(kv.Value, "after");
-                                    if (after != null && !P.research.Contains(after)) continue;
-                                    lab = bl;
-                                    rid = kv.Key;
-                                    break;
-                                }
-                                if (lab != null) break;
-                            }
-                            if (lab == null || oi < order.Length) buys++;
-                            else if (b.QueueResearch(lab, rid) == null) buys++;
-                        }
-                        else if (turn == 2)
-                        {
-                            if (dep == null) buys++;
-                            else if (dep.queue.Count == 0)
-                            {
-                                err = b.QueueUnit(dep, P.tech >= 2 ? "tank" : "buggy");
-                                if (err == null || err.StartsWith("Population")) buys++;
-                            }
-                        }
-                        else if (bar != null)
-                        {
-                            if (wantBar == null)
-                                wantBar = army.Count > 8 && Random.value < 0.15f ? "medics" : P.tech >= 2 && Random.value < 0.5f ? "rockets" : "marines";
-                            err = b.QueueUnit(bar, wantBar);
-                            if (err == null || err.StartsWith("Population"))
-                            {
-                                buys++;
-                                wantBar = null;
-                            }
-                        }
-                    }
-                }
-                if (expandSite != null)
-                {
-                    var at = new Vector2(expandSite.x, expandSite.y);
-                    var party = army.Where(u => u.pop > 0).OrderBy(u => (u.Pos - at).sqrMagnitude).Take(3).ToList();
-                    if (b.Expand("player", expandSite) == null) sb.AppendLine($"  player expands at {(int)b.time}s");
-                    else if (party.Count > 0 && (party[0].Pos - at).sqrMagnitude > 300 * 300 && party[0].order == Order.None)
-                        b.OrderMove(party, at, true);
-                }
-                if (player == "efficient")
-                {
-                    if (b.time > 420 && army.Count >= 14 && !attacked)
-                    {
-                        attacked = true;
-                        sb.AppendLine($"  player attacks at {(int)b.time}s with {army.Count}");
-                    }
-                    if (attacked) b.OrderMove(army.Where(u => u.order == Order.None && u.target == null), ap, true);
+                    brain.Think(1f);
                     foreach (var u in army)
                         if (u.target != null && b.AbilityReady(u)) b.UseAbility(u, u.target.Pos);
-                    UsePowers(b, home, hive, attacked);
+                    UsePowers(b, home, hive, brain.attacking);
+                }
+                else if (player == "casual")
+                {
+                    if (oi < order.Length && P.res >= b.BuildCost(order[oi]) && b.FreeSlot(home) >= 0 && b.Build(home, order[oi]) == null) oi++;
+                    if (oi >= 2 && b.time > 120 && P.res > 400 && b.FreeSocket(home) >= 0 && home.sockets.Count(s => s != null) < 2)
+                        b.BuildTower(home, "pulse");
+                    var idle = b.buildings.Where(x => x.alive && x.faction == "player" && x.Done && x.queue.Count == 0).ToList();
+                    foreach (var bl in idle)
+                    {
+                        if (bl.trains.Length > 0) bl.rally = rally;
+                        if (bl.trains.Length > 0 && P.res > 250) b.QueueUnit(bl, "marines");
+                    }
                 }
 
                 if (b.ai.wave != lastWave)
@@ -290,30 +207,291 @@ namespace Outpost.EditorTools
             }
         }
 
-        // the efficient player's turrets: a starter set at the main base, one Pulse Turret at each expansion,
-        // then tier upgrades once it has spare Supplies (exercises build / upgrade / behaviors in the suite)
-        static readonly string[] HomeTowers = { "pulse", "tesla", "cryo", "radar" };
-
-        static void Towers(Battle b, Base home, bool started)
+        // ------------------------------------------------------------------ the efficient player
+        /// <summary>
+        /// The "efficient" scripted player: plays the economy the way the alien AI does (savings fund for
+        /// buildings, Supply Pad upgrades, expansions on a timer, Fortress), keeps every production building
+        /// busy, takes nearby relays, defends its bases with the whole army, attacks when its army is big
+        /// and pulls back when the attack has been beaten. Meant to be a fair benchmark for balance checks.
+        /// </summary>
+        class Efficient
         {
-            var P = b.Player;
-            if (!started || b.time < 120) return;
-            int have = home.sockets.Count(s => s != null);
-            if (have < HomeTowers.Length && P.res > 400 && b.FreeSocket(home) >= 0)
+            readonly Battle b;
+            readonly Base home;
+            readonly StringBuilder log;
+            readonly Vector2 hp;
+            float fund;
+            public bool attacking;
+            int attackSize;
+            readonly Dictionary<Relay, List<Unit>> relayTeams = new Dictionary<Relay, List<Unit>>();
+            readonly List<Unit> escort = new List<Unit>();
+            string wantBar;
+            /// <summary>"steady" player: the same play on one base only (no expansions, no relays).</summary>
+            public bool oneBase;
+            static readonly string[] HomeOrder = { "barracks", "supply", "reactor", "depot", "supply", "reactor", "barracks" };
+            static readonly string[] ExpOrder = { "supply", "supply", "barracks", "supply", "supply" };
+
+            public Efficient(Battle b, Base home, StringBuilder log)
             {
-                b.BuildTower(home, HomeTowers[have]);
-                return;
+                this.b = b;
+                this.home = home;
+                this.log = log;
+                hp = new Vector2(home.x, home.y);
             }
-            foreach (var bs in b.bases)
-                if (bs != home && bs.Alive && bs.faction == "player" && bs.hq.Done && bs.sockets.All(s => s == null) && P.res > 400)
+
+            List<Base> Mine => b.bases.Where(x => x.Alive && x.faction == "player").ToList();
+
+            static int Count(Base bs, string kind) => bs.slots.Count(s => s != null && s.alive && s.kind == kind);
+
+            /// <summary>The next economy purchase in priority order: (what, cost, buy). buy returns an error or null.</summary>
+            (string what, int cost, System.Func<string> buy) NextGoal(List<Base> mine)
+            {
+                var P = b.Player;
+                // 1. the main base's buildings (the last two slots only exist after the Fortress upgrade)
+                if (b.FreeSlot(home) >= 0)
                 {
-                    b.BuildTower(bs, "pulse");
+                    var have = new Dictionary<string, int>();
+                    foreach (var k in HomeOrder)
+                    {
+                        have[k] = have.TryGetValue(k, out var n) ? n + 1 : 1;
+                        if (Count(home, k) < have[k])
+                        {
+                            string kind = k;
+                            return ("home " + kind, b.BuildCost(kind, "player"), () => b.Build(home, kind));
+                        }
+                    }
+                }
+                // 2. an expansion when one is due (same timing rule as the alien AI on this difficulty)
+                var site = ExpansionSite(mine);
+                if (site != null)
+                    return ("expand", b.ExpansionCost("player"), () => TryExpand(site));
+                // 3. Supply Pad upgrades
+                var pad = b.buildings.FirstOrDefault(x => x.alive && x.faction == "player" && x.kind == "supply" && x.Done && !x.upgraded && !x.Upgrading && x.queue.Count == 0);
+                if (pad != null) return ("upgrade pad", GameData.I(pad.Upgrade, "cost", 225), () => b.QueueUpgrade(pad));
+                // 4. buildings at the expansions
+                foreach (var bs in mine)
+                {
+                    if (bs == home || !bs.hq.Done || b.FreeSlot(bs) < 0) continue;
+                    var have = new Dictionary<string, int>();
+                    foreach (var k in ExpOrder)
+                    {
+                        have[k] = have.TryGetValue(k, out var n) ? n + 1 : 1;
+                        if (Count(bs, k) < have[k])
+                        {
+                            string kind = k;
+                            var at = bs;
+                            return ("build " + kind, b.BuildCost(kind, "player"), () => b.Build(at, kind));
+                        }
+                    }
+                }
+                // 5. the Fortress (two more slots at the main base)
+                if (P.tech >= 2 && b.time > 360 && !home.hq.upgraded && !home.hq.Upgrading && home.hq.queue.Count == 0)
+                    return ("fortress", GameData.I(home.hq.Upgrade, "cost", 650), () => b.QueueUpgrade(home.hq));
+                // 6. one Pulse Turret per base
+                if (b.time > 300)
+                    foreach (var bs in mine)
+                        if (bs.hq.Done && bs.sockets.All(s => s == null) && b.FreeSocket(bs) >= 0)
+                        {
+                            var at = bs;
+                            return ("pulse", (int)b.TowerCost("pulse"), () => b.BuildTower(at, "pulse"));
+                        }
+                return (null, 0, null);
+            }
+
+            MapData.SiteData ExpansionSite(List<Base> mine)
+            {
+                float t = b.time;
+                if (oneBase) return null;
+                float expandAt = GameData.F(GameData.Rts["ai"]["difficulties"]["Normal"], "expand_at", 270);
+                if (mine.Count >= 4 || t < expandAt + 240 * (mine.Count - 1)) return null;
+                return b.FreeSites().Where(x => !b.wildSites.Contains(x.id))
+                    .OrderBy(x => (new Vector2(x.x, x.y) - hp).sqrMagnitude).FirstOrDefault();
+            }
+
+            /// <summary>Walks an escort to the site and founds the base once they are there.</summary>
+            string TryExpand(MapData.SiteData site)
+            {
+                var at = new Vector2(site.x, site.y);
+                string err = b.CanExpand("player", site);
+                if (err == "Need units nearby")
+                {
+                    escort.RemoveAll(u => !u.alive);
+                    if (escort.Count < 3)
+                        escort.AddRange(b.units.Where(u => u.alive && u.faction == "player" && u.pop > 0 && !escort.Contains(u) && !InRelayTeam(u))
+                            .OrderBy(u => (u.Pos - at).sqrMagnitude).Take(3 - escort.Count));
+                    b.OrderMove(escort.Where(u => (u.Pos - at).sqrMagnitude > 200 * 200), at, true);
+                    return err;
+                }
+                err = b.Expand("player", site);
+                if (err == null)
+                {
+                    log.AppendLine($"  player expands at {(int)b.time}s (base {Mine.Count})");
+                    escort.Clear();
+                }
+                return err;
+            }
+
+            bool InRelayTeam(Unit u) => relayTeams.Values.Any(l => l.Contains(u));
+
+            public void Think(float dt)
+            {
+                var P = b.Player;
+                var mine = Mine;
+                fund = Mathf.Min(fund + P.income * dt * 0.45f, 900f);
+                var goal = NextGoal(mine);
+                if (goal.buy == null) fund = 0;
+                else if (P.res >= goal.cost)
+                {
+                    if (goal.buy() == null) fund = Mathf.Max(0, fund - goal.cost);
+                }
+                float keep = goal.buy == null ? 0 : Mathf.Min(fund, goal.cost);
+                Produce(keep);
+                Research(keep);
+                Army(mine);
+            }
+
+            void Produce(float keep)
+            {
+                var P = b.Player;
+                var army = b.units.Where(u => u.alive && u.faction == "player" && u.pop > 0).ToList();
+                foreach (var bl in b.buildings)
+                {
+                    if (!bl.alive || bl.faction != "player" || !bl.Done || bl.trains.Length == 0 || bl.queue.Count > 0 || bl.Upgrading) continue;
+                    string kind;
+                    if (bl.kind == "barracks")
+                    {
+                        if (wantBar == null)
+                        {
+                            float r = Random.value;
+                            wantBar = P.tech >= 2 && r < 0.35f ? "rockets" : P.tech >= 2 && r < 0.5f ? "flamers"
+                                : army.Count > 6 && r < 0.6f ? "medics" : "marines";
+                        }
+                        kind = wantBar;
+                    }
+                    else if (bl.kind == "depot") kind = P.tech >= 2 ? "tank" : "buggy";
+                    else continue;
+                    int cost = b.UnitCost("player", kind);
+                    if (P.res - cost < keep) continue;
+                    if (b.QueueUnit(bl, kind) == null && bl.kind == "barracks") wantBar = null;
+                }
+            }
+
+            void Research(float keep)
+            {
+                var P = b.Player;
+                if (P.res < keep + 350 || P.researching.Count > 0) return;
+                foreach (var bl in b.buildings)
+                {
+                    if (!bl.alive || bl.faction != "player" || !bl.Done || bl.Research == null || bl.queue.Count > 0) continue;
+                    foreach (var kv in bl.Research)
+                    {
+                        if (P.research.Contains(kv.Key) || P.researching.Contains(kv.Key)) continue;
+                        if (P.tech < GameData.I(kv.Value, "tech", 1)) continue;
+                        string after = GameData.S(kv.Value, "after");
+                        if (after != null && !P.research.Contains(after)) continue;
+                        if (b.QueueResearch(bl, kv.Key) == null) return;
+                    }
+                }
+            }
+
+            static Vector2 Centre(IEnumerable<Unit> us)
+            {
+                var c = Vector2.zero;
+                int n = 0;
+                foreach (var u in us) { c += u.Pos; n++; }
+                return n == 0 ? c : c / n;
+            }
+
+            void Army(List<Base> mine)
+            {
+                var P = b.Player;
+                var foes = b.units.Where(u => u.alive && u.faction == "alien").ToList();
+                var army = b.units.Where(u => u.alive && u.faction == "player" && u.pop > 0).ToList();
+                var cmd = b.units.FirstOrDefault(u => u.alive && u.faction == "player" && u.pop == 0 && u.kind == "commander");
+
+                // relay teams: two units take each unowned relay near our bases while nothing guards it
+                foreach (var kv in relayTeams.ToList())
+                {
+                    kv.Value.RemoveAll(u => !u.alive);
+                    if (kv.Key.owner == "player" || kv.Value.Count == 0) relayTeams.Remove(kv.Key);
+                }
+                if (!oneBase && army.Count >= 6 && relayTeams.Count < 2)
+                    foreach (var r in b.relays)
+                    {
+                        if (r.owner == "player" || relayTeams.ContainsKey(r) || relayTeams.Count >= 2) continue;
+                        var rp = new Vector2(r.x, r.y);
+                        if (!mine.Any(bs => (new Vector2(bs.x, bs.y) - rp).sqrMagnitude < 1300f * 1300f)) continue;
+                        if (b.units.Any(u => u.alive && (u.faction == "alien" || u.faction == "wild") && (u.Pos - rp).sqrMagnitude < 450f * 450f)) continue;
+                        var team = army.Where(u => !InRelayTeam(u) && !escort.Contains(u)).OrderBy(u => (u.Pos - rp).sqrMagnitude).Take(2).ToList();
+                        if (team.Count < 2) break;
+                        relayTeams[r] = team;
+                        b.OrderMove(team, rp, true);
+                    }
+                var free = army.Where(u => !InRelayTeam(u) && !escort.Contains(u)).ToList();
+                if (cmd != null) free.Add(cmd);
+
+                // defend: the whole army goes to the base with the most aliens near it
+                Base threatened = null;
+                int worst = 1;
+                foreach (var bs in mine)
+                {
+                    var bp = new Vector2(bs.x, bs.y);
+                    int n = foes.Count(u => (u.Pos - bp).sqrMagnitude < 600f * 600f);
+                    if (n > worst) { worst = n; threatened = bs; }
+                }
+                if (threatened != null)
+                {
+                    var bp = new Vector2(threatened.x, threatened.y);
+                    var near = foes.Where(u => (u.Pos - bp).sqrMagnitude < 600f * 600f);
+                    var c = Centre(near);
+                    b.OrderMove(free.Where(u => u.target == null || (u.Pos - c).sqrMagnitude > 500f * 500f), c, true);
+                    if (attacking) { attacking = false; log.AppendLine($"  player recalls its army to defend at {(int)b.time}s"); }
                     return;
                 }
-            if (b.time < 300 || P.res < 500) return;
-            var up = b.towers.Where(t => t.alive && t.faction == "player" && t.Done && t.UpgradeCost() >= 0)
-                .OrderBy(t => t.tier).ThenBy(t => t.UpgradeCost()).FirstOrDefault();
-            if (up != null) b.UpgradeTower(up);
+
+                int popArmy = army.Sum(u => u.pop);
+                if (attacking)
+                {
+                    if (army.Count < attackSize * 0.4f)
+                    {
+                        attacking = false;
+                        log.AppendLine($"  player pulls back at {(int)b.time}s with {army.Count}");
+                        b.OrderMove(free, Rally(mine), false);
+                        return;
+                    }
+                    var target = Target();
+                    if (target == null) return;
+                    var tp = new Vector2(target.x, target.y);
+                    b.OrderMove(free.Where(u => u.order == Order.None && u.target == null), tp, true);
+                    return;
+                }
+                if (b.time > 360 && popArmy >= Mathf.Min(P.popCap - 4, 34))
+                {
+                    attacking = true;
+                    attackSize = army.Count;
+                    var target = Target();
+                    log.AppendLine($"  player attacks at {(int)b.time}s with {army.Count} units (pop {popArmy}) -> {(target == home ? "?" : target?.hq.kind + " base")}");
+                    if (target != null) b.OrderMove(free, new Vector2(target.x, target.y), true);
+                    return;
+                }
+                // gather at the rally point
+                var rally = Rally(mine);
+                b.OrderMove(free.Where(u => u.order == Order.None && u.target == null && (u.Pos - rally).sqrMagnitude > 250f * 250f), rally, true);
+            }
+
+            /// <summary>The alien base to attack: the closest one to our main base.</summary>
+            Base Target() => b.bases.Where(x => x.Alive && x.faction == "alien")
+                .OrderBy(x => (new Vector2(x.x, x.y) - hp).sqrMagnitude).FirstOrDefault();
+
+            /// <summary>In front of the newest base, toward the nearest alien base.</summary>
+            Vector2 Rally(List<Base> mine)
+            {
+                var t = Target();
+                var from = mine.Count > 0 ? mine[mine.Count - 1] : home;
+                var fp = new Vector2(from.x, from.y);
+                if (t == null) return fp;
+                return fp + (new Vector2(t.x, t.y) - fp).normalized * 260f;
+            }
         }
 
         static string TowerList(Battle b, string faction) =>
@@ -322,10 +500,43 @@ namespace Outpost.EditorTools
         static string Mix(Battle b, string faction) =>
             string.Join(" ", b.units.Where(u => u.alive && u.faction == faction).GroupBy(u => u.kind).Select(g => g.Key + "x" + g.Count()));
 
-        /// <summary>The standard set: efficient and casual players on Normal, efficient on Hard.</summary>
+        /// <summary>The standard set: efficient and casual players on Normal, efficient on Hard (full logs).</summary>
         public static string RunSuite(string mapId = "dune_sea")
         {
             return Run(mapId, "Normal", "efficient", 1234) + "\n" + Run(mapId, "Normal", "casual", 1235) + "\n" + Run(mapId, "Hard", "efficient", 1236);
+        }
+
+        /// <summary>
+        /// The balance check (roadmap step 9): every map x difficulty x player, several seeds each, one line per
+        /// cell with the player's wins and the match lengths (p = player won, a = alien won, - = no winner).
+        /// </summary>
+        public static string BalanceTable(int seeds = 3, string leader = "vanguard", string players = "efficient,steady,casual",
+            string maps = "dune_sea,hive_reach,magma_rift,frostbite", string difficulties = "Easy,Normal,Hard,Legendary")
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine($"balance table, leader {leader}, {seeds} seeds per cell, matches up to 30 min");
+            foreach (var p in players.Split(','))
+                foreach (var m in maps.Split(','))
+                {
+                    sb.Append($"{p,-9} {m,-11}");
+                    foreach (var d in difficulties.Split(','))
+                    {
+                        int wins = 0;
+                        var times = new List<string>();
+                        for (int i = 1; i <= seeds; i++)
+                        {
+                            string r = Run(m, d, p, i * 101, 1800f, 1800f, leader);
+                            var end = r.Split('\n').FirstOrDefault(l => l.StartsWith("end ")) ?? "";
+                            var w = System.Text.RegularExpressions.Regex.Match(end, "t=(\\d+) winner=(\\w+)");
+                            if (w.Groups[2].Value == "player") wins++;
+                            string who = w.Groups[2].Value == "player" ? "p" : w.Groups[2].Value == "alien" ? "a" : "-";
+                            times.Add(who + w.Groups[1].Value);
+                        }
+                        sb.Append($" | {d} {wins}/{seeds} {string.Join(" ", times)}");
+                    }
+                    sb.AppendLine();
+                }
+            return sb.ToString();
         }
 
         [MenuItem("Outpost/Run Headless Test Matches", priority = 40)]
