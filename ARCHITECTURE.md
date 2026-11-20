@@ -2,7 +2,7 @@
 
 This is the target layout for the whole project and the rules that keep it tidy. Files marked **now** exist today; everything else is tagged with the roadmap step that creates it (M1.3 = Milestone 1, step 3). When a step lands, its files go where this document says, and the document is updated if the plan changes.
 
-**Placeholders (Nov 18).** Every planned script below already exists as an empty placeholder: a header comment saying what it will hold and which step fills it, and an empty namespace, so it compiles to nothing. A step fills its placeholder in rather than creating the file. The housekeeping pass (Nov 19) moved the code out of `Battle.cs`, `Entities.cs`, `AlienAI.cs` and `MapBuilder.cs` into the matching placeholders and moved the remaining files into `Sim/Core/` and `Sim/AI/`. Empty asset folders hold a `.gitkeep` so git keeps them. Not created yet: the scenes `Boot.unity` and `MainMenu.unity` (made in the editor at M2), `Battle.unity` (a rename of Skirmish.unity), `audio.json` (M4), and anything for Classic Defense or rigged animation (both undecided). Placeholders in `Input/` use the `Outpost.View` namespace like `CommandInput` does, because a namespace called `Outpost.Input` would hide Unity's `Input` class inside the project.
+**Placeholders (Nov 18).** Every planned script below already exists as an empty placeholder: a header comment saying what it will hold and which step fills it, and an empty namespace, so it compiles to nothing. A step fills its placeholder in rather than creating the file. The housekeeping pass (Nov 19) moved the code out of `Battle.cs`, `Entities.cs`, `AlienAI.cs` and `MapBuilder.cs` into the matching placeholders and moved the remaining files into `Sim/Core/` and `Sim/AI/`. Empty asset folders hold a `.gitkeep` so git keeps them. Not created yet: the scenes `Boot.unity` and `MainMenu.unity` (made in the editor at M2), `Battle.unity` (a rename of Skirmish.unity), `audio.json` (M4), and anything for Classic Defense (undecided). Rigged animation was decided on Nov 20 (M5): `Art/Models/` and `Art/Animations/` exist with a `.gitkeep`. Placeholders in `Input/` use the `Outpost.View` namespace like `CommandInput` does, because a namespace called `Outpost.Input` would hide Unity's `Input` class inside the project.
 
 **Milestones (Nov 20).** Six milestones: M1 Skirmish, M2 front end, M3 map generator plus campaign and Siege Run systems (Siege Run battles on generated maps), M4 sound, performance and smaller modes, M5 art, maps and levels (final art and animation, reactive world, hand-made maps, Map Builder on the M3 generator, campaign levels), M6 balance and release. Until M5 the game keeps today's models, the four Medium maps and placeholder looks.
 
@@ -145,6 +145,7 @@ View/
 ├─ EntityView.cs         now · one unit, building or tower on screen: stepping, attack pose, lean, banking,
 │                              turret tracking, falling over on death
 ├─ UnitAnimator.cs       now · ModelRig: swaps a model between its exported poses, aims turret parts, spins rotors
+│                              (placeholder: replaced at M5 by Animator-driven rigged characters)
 │                              (which parts move comes from the model pack's index, so there is no rig file)
 ├─ BaseApron.cs          now · the connected base platform
 ├─ RtsCamera.cs          now · also camera shake (Shake / ShakeAt) since M1.5
@@ -244,7 +245,9 @@ Editor/
 ```
 Assets/Outpost/
 ├─ Art/
-│  ├─ Materials/     M1.2 · shared materials for the models (today they are made in code)
+│  ├─ Materials/     M5 · shared materials for the models (today they are made in code)
+│  ├─ Models/        M5 · rigged characters (skeleton + skinned mesh), units first, then turrets and buildings
+│  ├─ Animations/    M5 · animation clips and Animator controllers (idle, walk, run, attack, hit, death)
 │  ├─ Shaders/       now · FxAdditive / FxAlpha (effects) · M5 · team color and glow, creep and decals
 │  ├─ Effects/       M1.5 · empty on purpose: effect textures are drawn in code (EffectPool.MakeTexture);
 │  │                        hand-made textures or particle prefabs go here if the look needs them later
@@ -278,4 +281,4 @@ The headless test tool does steps 1 to 3 with no view at all, which is why the S
 
 - **UI Toolkit versus the older Unity UI.** Settled Nov 12: the HUD is built on UI Toolkit and works. Still to confirm by hand: real mouse clicks on the HUD (the automated test could only send simulated ones).
 - **Classic Defense.** Not laid out here. If it is ported it gets its own `Sim/Classic/`, `View/Classic/` and `UI/Classic/` beside the RTS, sharing Content, Game, Shared UI and the Art and Audio folders.
-- **Animation.** Units now animate by swapping exported poses plus movement in code. If that is not enough once you have watched it, `Art/` gains `Models/` and `Animations/` for rigged characters and `UnitAnimator.cs` drives those instead.
+- **Animation.** Decided Nov 20: rigged, animated characters at M5. Until then units keep the code-driven placeholder (exported poses plus movement in code). At M5 `Art/Models/` and `Art/Animations/` fill up and `UnitAnimator.cs` drives Animators instead. The sculpted Python meshes have no skeleton, so the rigged models will likely be rebuilt or retopologised in a 3D tool such as Blender; how is decided when M5 starts.
