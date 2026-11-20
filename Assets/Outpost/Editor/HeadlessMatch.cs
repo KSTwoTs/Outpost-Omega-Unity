@@ -23,14 +23,17 @@ namespace Outpost.EditorTools
         /// "casual" (slow, Marines only, never attacks) or "idle" (does nothing).
         /// </summary>
         public static string Run(string mapId = "dune_sea", string difficulty = "Normal", string player = "efficient",
-            int seed = 1234, float maxTime = 1200f, float logEvery = 180f)
+            int seed = 1234, float maxTime = 1200f, float logEvery = 180f, string leader = "vanguard")
         {
             var sb = new StringBuilder();
             GameData.Reload();
             Random.InitState(seed);
             var map = MapBuilder.Load(mapId);
             var b = new Battle(map);
+            b.SetLeader(leader);
             b.StandardStart(difficulty);
+            var casts = new Dictionary<string, int>();
+            var lastCd = new Dictionary<string, float>();
             var home = b.bases.FirstOrDefault(x => x.faction == "player");
             var hive = b.bases.FirstOrDefault(x => x.faction == "alien");
             if (home == null || hive == null) return $"{mapId}: no start sites";
@@ -38,11 +41,11 @@ namespace Outpost.EditorTools
             var ap = new Vector2(hive.x, hive.y);
             var dir = (ap - hp).normalized;
 
-            sb.AppendLine($"== {mapId}, {difficulty}, {player} player, seed {seed}");
+            sb.AppendLine($"== {mapId}, {difficulty}, {player} player, leader {b.leader}, seed {seed}");
             var sw = System.Diagnostics.Stopwatch.StartNew();
             string[] order = player == "efficient" ? new[] { "barracks", "supply", "reactor", "depot" }
                 : player == "casual" ? new[] { "barracks" } : new string[0];
-            int oi = 0, lastWave = 0, lastLog = -1, heroDeaths = 0;
+            int oi = 0, lastWave = 0, lastLog = -1, heroDeaths = 0, lastRaids = 0, lastScouts = 0;
             int buys = 0;
             string wantBar = null;
             float next = 0;
@@ -51,6 +54,7 @@ namespace Outpost.EditorTools
             while (b.winner == null && b.time < maxTime && sw.ElapsedMilliseconds < 20000)
             {
                 b.Tick(0.05f);
+                CountCasts(b, casts, lastCd);
                 bool heroNow = b.Player.hero != null;
                 if (heroWas && !heroNow) heroDeaths++;
                 heroWas = heroNow;
@@ -160,12 +164,23 @@ namespace Outpost.EditorTools
                     if (attacked) b.OrderMove(army.Where(u => u.order == Order.None && u.target == null), ap, true);
                     foreach (var u in army)
                         if (u.target != null && b.AbilityReady(u)) b.UseAbility(u, u.target.Pos);
+                    UsePowers(b, home, hive, attacked);
                 }
 
                 if (b.ai.wave != lastWave)
                 {
                     lastWave = b.ai.wave;
                     sb.AppendLine($"  wave {lastWave} at {(int)b.time}s: {Mix(b, "alien")} vs player {army.Count}");
+                }
+                if (b.ai.scoutsSent != lastScouts)
+                {
+                    lastScouts = b.ai.scoutsSent;
+                    sb.AppendLine($"  AI scout sent at {(int)b.time}s");
+                }
+                if (b.ai.raidsSent != lastRaids)
+                {
+                    lastRaids = b.ai.raidsSent;
+                    sb.AppendLine($"  AI raid {lastRaids} at {(int)b.time}s, player explored {b.FogOf("player").ExploredShare():P0}");
                 }
                 int slot = (int)(b.time / logEvery);
                 if (slot != lastLog)
@@ -185,9 +200,94 @@ namespace Outpost.EditorTools
                           $" commander deaths {heroDeaths} hq {(int)home.hq.hp} hive {(int)hive.hq.hp}");
             sb.AppendLine($"  final armies: player {Mix(b, "player")} | alien {Mix(b, "alien")} | wild {Mix(b, "wild")}");
             sb.AppendLine($"  towers: player [{TowerList(b, "player")}] alien [{TowerList(b, "alien")}]");
+            sb.AppendLine($"  vision: explored player {b.FogOf("player").ExploredShare():P0} / alien {b.FogOf("alien").ExploredShare():P0}; fog {b.fogUpdates} updates, {b.fogMsTotal / Mathf.Max(1, b.fogUpdates):0.000} ms each; AI scouts {b.ai.scoutsSent}, raids {b.ai.raidsSent}");
+            sb.AppendLine($"  alerts {b.alerts.Count}: {string.Join(", ", b.alerts.GroupBy(a => a.text.Split('!', ':')[0]).Select(g => g.Key + " x" + g.Count()))}");
+            sb.AppendLine($"  powers cast: {(casts.Count == 0 ? "none" : string.Join(" ", casts.OrderBy(kv => kv.Key).Select(kv => kv.Key + "x" + kv.Value)))}");
             sb.AppendLine($"  bases player/alien {b.bases.Count(x => x.Alive && x.faction == "player")}/{b.bases.Count(x => x.Alive && x.faction == "alien")}" +
                           $", crates left {b.crates.Count(c => c.alive)}/{b.crates.Count}, relays player/alien {b.relays.Count(r => r.owner == "player")}/{b.relays.Count(r => r.owner == "alien")}");
             return sb.ToString();
+        }
+
+        // ------------------------------------------------------------------ powers
+        /// <summary>Counts every power cast by either side (its cooldown jumps up).</summary>
+        static void CountCasts(Battle b, Dictionary<string, int> casts, Dictionary<string, float> last)
+        {
+            foreach (var f in new[] { b.Player, b.Alien })
+                foreach (var kv in f.powerCd)
+                {
+                    string key = (f.name == "player" ? "P:" : "A:") + kv.Key;
+                    float before;
+                    if (last.TryGetValue(key, out before) && kv.Value > before + 0.5f)
+                        casts[key] = (casts.TryGetValue(key, out var n) ? n : 0) + 1;
+                    last[key] = kv.Value;
+                }
+        }
+
+        /// <summary>The biggest clump of alien units (count, centre) within reach of a spot, or count 0.</summary>
+        static (int n, Vector2 at) AlienClump(Battle b, Vector2 near, float reach, float radius = 150f)
+        {
+            var foes = b.units.Where(u => u.alive && u.faction == "alien" && (u.Pos - near).sqrMagnitude < reach * reach).ToList();
+            (int n, Vector2 at) best = (0, near);
+            foreach (var u in foes)
+            {
+                var group = foes.Where(o => (o.Pos - u.Pos).sqrMagnitude < radius * radius).ToList();
+                if (group.Count <= best.n) continue;
+                var c = Vector2.zero;
+                foreach (var o in group) c += o.Pos;
+                best = (group.Count, c / group.Count);
+            }
+            return best;
+        }
+
+        /// <summary>
+        /// The efficient player's leader powers: Orbital Strike and the leader's attack power on big alien clumps
+        /// (5+ near its bases or its army), Cryo Bomb on 4+ attacking a base, Repair Wave where its own things are
+        /// most hurt, Bulwark when a base is under attack, Supply Drop whenever it is ready, Turret Drop to defend.
+        /// It keeps 150 Supplies back for units unless the fight is at one of its bases.
+        /// </summary>
+        static void UsePowers(Battle b, Base home, Base hive, bool attacking)
+        {
+            var P = b.Player;
+            var mine = b.bases.Where(x => x.Alive && x.faction == "player").ToList();
+            var army = b.units.Where(u => u.alive && u.faction == "player" && u.pop > 0).ToList();
+            (int n, Vector2 at) defend = (0, Vector2.zero), field = (0, Vector2.zero);
+            foreach (var bs in mine)
+            {
+                var c = AlienClump(b, new Vector2(bs.x, bs.y), 650);
+                if (c.n > defend.n) defend = c;
+            }
+            if (army.Count > 0)
+            {
+                var centre = Vector2.zero;
+                foreach (var u in army) centre += u.Pos;
+                centre /= army.Count;
+                field = AlienClump(b, centre, 600);
+            }
+            var fight = defend.n >= field.n ? defend : field;
+            bool atHome = defend.n > 0 && defend.n >= field.n;
+            System.Func<string, bool> afford = pid => b.CanPower(pid) == null && (atHome || P.res >= b.PowerCost(pid) + 150);
+            string v = b.playerPowers[3];
+            if (v == "supply_drop" && b.CanPower(v) == null) b.CastPower(v, new Vector2(home.x, home.y));
+            if (fight.n >= 5 && afford("orbital")) b.CastPower("orbital", fight.at);
+            if (defend.n >= 4 && afford("cryo")) b.CastPower("cryo", defend.at);
+            bool vAttack = v == "mech" || v == "carpet" || v == "firestorm" || v == "deep_freeze" || v == "sniper_net" || v == "drone_swarm";
+            if (vAttack && fight.n >= 5 && afford(v)) b.CastPower(v, fight.at);
+            if (v == "turret_drop" && defend.n >= 4 && afford(v)) b.CastPower(v, defend.at);
+            if (v == "bulwark" && defend.n >= 6 && afford(v)) b.CastPower(v, new Vector2(home.x, home.y));
+            // Repair Wave where the most of its own hit points are missing (at least 1200)
+            if (afford("repair"))
+            {
+                var own = b.All().Where(e => e.alive && e.faction == "player" && e.Done).ToList();
+                float bestMiss = 1200f;
+                Vector2? spot = null;
+                foreach (var e in own)
+                {
+                    if (e.hp > e.maxHp * 0.8f) continue;
+                    float miss = own.Where(o => (o.Pos - e.Pos).sqrMagnitude < 200f * 200f).Sum(o => o.maxHp - o.hp);
+                    if (miss > bestMiss) { bestMiss = miss; spot = e.Pos; }
+                }
+                if (spot.HasValue) b.CastPower("repair", spot.Value);
+            }
         }
 
         // the efficient player's turrets: a starter set at the main base, one Pulse Turret at each expansion,

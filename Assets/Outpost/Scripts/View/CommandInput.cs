@@ -12,7 +12,7 @@ namespace Outpost.View
     /// left click / drag select (Shift adds, double-click selects that type on screen), right click moves
     /// or attacks (sets the rally point with a building selected), A + left click attack-moves,
     /// F unit ability (aimed ones then take a left click), S stop, H hold, Q whole army, E army on screen,
-    /// G Commander, Ctrl+1-5 / 1-5 groups, Esc cancels.
+    /// G Commander, Ctrl+1-5 / 1-5 groups, Z X C V leader powers (then a left click on the target), Esc cancels.
     /// </summary>
     public class CommandInput : MonoBehaviour
     {
@@ -29,6 +29,7 @@ namespace Outpost.View
         public readonly List<Rect> blockers = new List<Rect>();   // extra blocked rects (GUI coords, top-left origin)
         public System.Func<Vector2, bool> overUi;                  // set by the HUD: is this screen point on a panel?
         public string abilityOnly;                                 // aim mode limited to one ability id (HUD buttons)
+        public string powerAim;                                    // leader power waiting for its target (Z X C V)
         public bool dragging;
         public Vector2 dragStart, dragNow;                        // GUI coords
         public Entity hover;
@@ -87,7 +88,7 @@ namespace Outpost.View
             float bd = float.MaxValue;
             foreach (var e in battle.All())
             {
-                if (!e.alive || battle.HiddenFrom(e, "player") || !ScreenOf(e, out var p, out var r)) continue;
+                if (!e.alive || !battle.Seen(e, "player") || !ScreenOf(e, out var p, out var r)) continue;
                 float d = Vector2.Distance(p, screen);
                 if (d > r) continue;
                 float score = d / r + (e.IsUnit ? 0f : 0.6f);    // units win over the building behind them
@@ -139,6 +140,22 @@ namespace Outpost.View
                 if (!Battle.AbilityAimed(u)) battle.UseAbility(u);
         }
 
+        /// <summary>Z X C V / the power bar: starts aiming leader power 0-3, or says why it can't be used.</summary>
+        public void TriggerPower(int index)
+        {
+            if (battle == null || index < 0 || index >= battle.playerPowers.Length) return;
+            string pid = battle.playerPowers[index];
+            string why = battle.CanPower(pid);
+            if (why != null)
+            {
+                Toast(why);
+                return;
+            }
+            powerAim = pid;
+            attackMode = abilityMode = false;
+            scanFrom = null;
+        }
+
         static readonly string[] OnePerClick = { "ram", "charge", "frag", "canister", "salvo", "barrage", "napalm" };
 
         void AimAbility(Vector2 px)
@@ -172,7 +189,18 @@ namespace Outpost.View
             // ---- left button
             if (mouse.leftButton.wasPressedThisFrame && !OverHud(gui))
             {
-                if (scanFrom != null)
+                if (powerAim != null)
+                {
+                    string pid = powerAim;
+                    powerAim = null;
+                    if (GroundPoint(mp, out var pp))
+                    {
+                        string err = battle.CastPower(pid, pp);
+                        if (err != null) Toast(err);
+                        else fx.Marker(MapBuilder.Ground(map, pp.x, pp.y), new Color(0.3f, 0.9f, 1f), 3f);
+                    }
+                }
+                else if (scanFrom != null)
                 {
                     var sensor = scanFrom;
                     scanFrom = null;
@@ -220,6 +248,7 @@ namespace Outpost.View
             // ---- right button
             if (mouse.rightButton.wasPressedThisFrame && !OverHud(gui))
             {
+                powerAim = null;        // a right click drops a power you were aiming
                 var mine = MyUnits.ToList();
                 if (mine.Count > 0)
                 {
@@ -254,7 +283,8 @@ namespace Outpost.View
             bool ctrl = kb.ctrlKey.isPressed;
             if (kb.escapeKey.wasPressedThisFrame)
             {
-                if (scanFrom != null) scanFrom = null;
+                if (powerAim != null) powerAim = null;
+                else if (scanFrom != null) scanFrom = null;
                 else if (attackMode || abilityMode) attackMode = abilityMode = false;
                 else Select(new Entity[0]);
             }
@@ -264,6 +294,10 @@ namespace Outpost.View
                 abilityMode = false;
             }
             if (kb.fKey.wasPressedThisFrame) TriggerAbility();
+            if (kb.zKey.wasPressedThisFrame) TriggerPower(0);
+            if (kb.xKey.wasPressedThisFrame) TriggerPower(1);
+            if (kb.cKey.wasPressedThisFrame) TriggerPower(2);
+            if (kb.vKey.wasPressedThisFrame) TriggerPower(3);
             if (kb.sKey.wasPressedThisFrame) battle.OrderStop(MyUnits, false);
             if (kb.hKey.wasPressedThisFrame) battle.OrderStop(MyUnits, true);
             if (kb.deleteKey.wasPressedThisFrame && selection.Count == 1 && selection[0] is Building rb && rb.faction == "player")

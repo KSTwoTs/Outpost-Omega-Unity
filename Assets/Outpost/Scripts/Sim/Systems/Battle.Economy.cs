@@ -21,6 +21,7 @@ namespace Outpost.Sim
                 inc += TowerIncome(f.name);
                 f.income = inc * f.incomeMult;
                 f.res += f.income * dt;
+                TickPowerCooldowns(f, dt);
                 // fallen heroes come back at the first base (the Queen only once the Swarm has Tech 3)
                 if (f.hero == null && f.heroRespawn > 0)
                 {
@@ -28,7 +29,8 @@ namespace Outpost.Sim
                     if (f.heroRespawn <= 0 && (f.name == "player" || f.tech >= 3))
                     {
                         f.heroRespawn = 0;
-                        if (SpawnHero(f.name) != null && f.name == "player") fx?.Message("player", "Commander is back in the field");
+                        var back = SpawnHero(f.name);
+                        if (back != null && f.name == "player") Alert(back.Pos, "Commander is back in the field", 0f, "player");
                     }
                 }
             }

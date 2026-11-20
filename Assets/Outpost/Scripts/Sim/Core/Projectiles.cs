@@ -34,6 +34,8 @@ namespace Outpost.Sim
         public Vector2 pos, from;
         public string faction, cls;
         public bool air;
+        public string kind;                     // null (unit abilities), orbital, shell (Carpet Bombing), acid (Acid Rain)
+        public bool burn;                       // Orbital Strike leaves fire (ignis)
     }
 
     /// <summary>A burning / acid patch on the ground that hurts enemies standing in it.</summary>

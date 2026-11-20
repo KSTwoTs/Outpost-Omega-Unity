@@ -28,5 +28,9 @@ namespace Outpost.Sim
         /// <summary>Words that float up from a spot (RANK UP, +16, +120 Supplies). kind: rank / number / supplies.
         /// Pure notification for the view.</summary>
         void Float(Vector2 at, string text, string kind);
+        /// <summary>A leader or alien power was used at a spot (id from rts.json powers / leader_powers / alien_powers),
+        /// or a delayed part of one landed (orbital_hit, sniper_hit). radius in game pixels (0 if it has none).
+        /// Pure notification for the view.</summary>
+        void Power(string faction, string id, Vector2 at, float radius);
     }
 }

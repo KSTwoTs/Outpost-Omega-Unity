@@ -38,7 +38,7 @@ namespace Outpost.View
         {
             foreach (var e in battle.All())
             {
-                if (!e.alive || !(e.view is EntityView v) || v == null || battle.HiddenFrom(e, "player")) continue;
+                if (!e.alive || !(e.view is EntityView v) || v == null || !battle.Seen(e, "player")) continue;
                 bool show = v.Selected || input.hover == e || e.hp < e.maxHp - 0.5f || !e.Done || e.shield > 0.5f;
                 if (!show) continue;
                 var sp = cam.WorldToScreenPoint(v.HeadPosition);

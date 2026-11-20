@@ -231,15 +231,70 @@ namespace Outpost.View
             });
         }
 
-        /// <summary>Hook for leader and alien powers (roadmap step 6). Until each power gets its own look this draws a
-        /// generic strike from the sky: a beam, an explosion and a white ring (Python orbital strike). r in world units.</summary>
+        /// <summary>Leader and alien powers (step 6). Simple first looks built from the pieces above; most powers
+        /// also show through what they cause (strikes, zones, spawns, floats). r in world units.</summary>
         public void Power(string id, string faction, Vector3 ground, float r)
         {
             var c = faction == "player" ? FxColors.Cyan : FxColors.AlienGreen;
-            pool.Line(ground + Up(40f), ground, FxColors.A(FxColors.Hot(c, 1.3f), 0.1f), Mathf.Max(1f, r * 0.4f), 0.4f, 0.5f, FxColors.Hot(c, 1.6f));
-            weapons.Explosion(ground, c, Mathf.Max(1.5f, r * 0.6f), true, false);
-            GroundRing(ground, FxColors.White, r * 0.2f, r, 0.5f, 1.4f);
-            RtsCamera.ShakeAt(ground, 0.7f);
+            switch (id)
+            {
+                case "orbital":           // the target circle while the laser charges (lands as orbital_hit)
+                    GroundRing(ground, FxColors.Red, r, r * 0.92f, 1.6f, 1.1f).fadeIn = 0.15f;
+                    pool.Flat(FxTex.Glow, FxBlend.Add, ground + Up(0.1f), FxColors.A(FxColors.Red, 0.15f), r * 2.2f, r * 2.2f, 1.6f);
+                    break;
+                case "orbital_hit":       // the Python orbital strike: beam from the sky, explosion, white ring, shake
+                case "mech":
+                case "turret_drop":
+                case "supply_drop":
+                {
+                    float rr = id == "orbital_hit" ? r : 3f;
+                    var col = id == "supply_drop" ? FxColors.Energy : FxColors.Cyan;
+                    pool.Line(ground + Up(40f), ground, FxColors.A(FxColors.Hot(col, 1.3f), 0.1f), Mathf.Max(1f, rr * 0.4f), 0.4f, 0.5f, FxColors.Hot(col, 1.6f));
+                    weapons.Explosion(ground, col, Mathf.Max(1.5f, rr * 0.6f), id == "orbital_hit", false);
+                    GroundRing(ground, FxColors.White, rr * 0.2f, rr, 0.5f, 1.4f);
+                    RtsCamera.ShakeAt(ground, id == "orbital_hit" ? 0.7f : 0.35f);
+                    break;
+                }
+                case "cryo":
+                case "deep_freeze":
+                    GroundRing(ground, id == "cryo" ? FxColors.Cryo : FxColors.White, r * 0.2f, r, 0.6f, 1.4f);
+                    pool.Flat(FxTex.Glow, FxBlend.Add, ground + Up(0.1f), FxColors.A(FxColors.Cryo, 0.35f), r * 2.4f, r * 2.6f, 0.9f);
+                    pool.Sparks(ground + Up(0.5f), FxColors.Hot(FxColors.Cryo, 1.4f), id == "cryo" ? 40 : 60, 14f, 0.8f, 0.25f, Vector3.up, 1f);
+                    break;
+                case "repair":
+                    GroundRing(ground, FxColors.Green, r * 0.2f, r, 0.6f, 1.3f);
+                    pool.Motes(ground + Up(0.4f), FxColors.Hot(FxColors.Green, 1.3f), 30, 4f, 1f, 0.4f, Vector3.up, 0.6f, 0.5f);
+                    break;
+                case "firestorm":
+                    GroundRing(ground, FxColors.Orange, r * 0.3f, r, 0.6f, 1.4f);
+                    break;
+                case "carpet":
+                case "drone_swarm":
+                case "bulwark":
+                    GroundRing(ground, c, 1f, 4f, 0.5f, 1.2f);
+                    break;
+                case "sniper_net":
+                    GroundRing(ground, FxColors.Red, r * 0.3f, 42f, 0.8f, 1.0f);
+                    break;
+                case "sniper_hit":        // a red beam from orbit onto each target
+                    pool.Line(ground + Up(45f), ground + Up(0.8f), FxColors.A(FxColors.Hot(FxColors.Red, 1.4f), 0.2f), 0.35f, 0.2f, 0.3f, FxColors.Hot(FxColors.Red, 1.8f));
+                    pool.Glow(ground + Up(0.8f), FxColors.Hot(FxColors.Red, 1.5f), 1.2f, 2f, 0.25f);
+                    break;
+                case "spore_storm":
+                    GroundRing(ground, FxColors.Magenta, r * 0.3f, r, 0.8f, 1.2f);
+                    break;
+                case "acid_rain":
+                    GroundRing(ground, FxColors.Acid, r, r * 0.9f, 1.8f, 1.0f).fadeIn = 0.2f;
+                    break;
+                case "swarm_call":
+                    break;
+                default:
+                    pool.Line(ground + Up(40f), ground, FxColors.A(FxColors.Hot(c, 1.3f), 0.1f), Mathf.Max(1f, r * 0.4f), 0.4f, 0.5f, FxColors.Hot(c, 1.6f));
+                    weapons.Explosion(ground, c, Mathf.Max(1.5f, r * 0.6f), true, false);
+                    GroundRing(ground, FxColors.White, r * 0.2f, r, 0.5f, 1.4f);
+                    RtsCamera.ShakeAt(ground, 0.7f);
+                    break;
+            }
         }
     }
 }

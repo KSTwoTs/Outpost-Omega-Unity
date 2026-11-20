@@ -21,6 +21,7 @@ namespace Outpost.Sim
                 slots = new Building[site.slots.Length], sockets = new Tower[site.sockets.Length],
             };
             var hq = new Building(faction == "player" ? "hq" : "hive", faction, site.x, site.y, b, -1);
+            ScaleHp(hq);
             if (instant) Finish(hq);
             b.hq = hq;
             bases.Add(b);
@@ -41,6 +42,7 @@ namespace Outpost.Sim
         {
             var p = b.site.slots[slot];
             var bl = new Building(kind, b.faction, p[0], p[1], b, slot);
+            ScaleHp(bl);
             if (instant) Finish(bl);
             b.slots[slot] = bl;
             buildings.Add(bl);
@@ -54,7 +56,9 @@ namespace Outpost.Sim
             var p = b.site.sockets[socket];
             // Turret Plating toughens loadout towers (not Bunkers or Spines), as sim.py build_tower
             bool plated = kind != "spine" && kind != "bunker" && factions[b.faction].research.Contains("turret_plating");
-            var t = new Tower(kind, b.faction, p[0], p[1], b, socket, plated ? 1.4f : 1f);
+            // and the leader's building_hp (bastion) toughens them too, as sim.py build_tower
+            float hpm = (plated ? 1.4f : 1f) * (kind != "spine" && kind != "bunker" ? BuildingHpMult(b.faction) : 1f);
+            var t = new Tower(kind, b.faction, p[0], p[1], b, socket, hpm);
             t.angle = Mathf.Atan2(p[1] - b.y, p[0] - b.x);
             if (instant) Finish(t);
             b.sockets[socket] = t;
@@ -64,12 +68,25 @@ namespace Outpost.Sim
             return t;
         }
 
-        public int BuildCost(string kind) => GameData.I(GameData.Building(kind), "cost", 100);
+        /// <summary>A building's price; the player's leader may make it cheaper (engineer -15%).</summary>
+        public int BuildCost(string kind, string faction = "player")
+        {
+            int c = GameData.I(GameData.Building(kind), "cost", 100);
+            return faction == "player" ? Cost(c, LeaderF("build_cost", 1f)) : c;
+        }
+
+        /// <summary>Leader building_hp (bastion) on a new player building.</summary>
+        void ScaleHp(Building bl)
+        {
+            float m = BuildingHpMult(bl.faction);
+            bl.maxHp *= m;
+            bl.hp *= m;
+        }
 
         public int TowerCost(string kind) =>
             kind == "spine" ? GameData.I(GameData.Rts["alien_tower"], "cost", 150)
                 : kind == "bunker" ? GameData.I(GameData.Rts["bunker"], "cost", 200)
-                : Mathf.RoundToInt(GameData.F(GameData.Tower(kind), "cost", 100) * GameData.F(GameData.Rts["towers"], "cost_mult", 2f));
+                : Cost(GameData.F(GameData.Tower(kind), "cost", 100) * GameData.F(GameData.Rts["towers"], "cost_mult", 2f), LeaderF("build_cost", 1f));
 
         bool Pay(string faction, int amount)
         {
@@ -104,7 +121,7 @@ namespace Outpost.Sim
             if ((kind == "reactor" || kind == "node") &&
                 buildings.Count(x => x.alive && x.faction == b.faction && x.kind == kind) >= 2)
                 return "Max 2 (Tech 3 is the cap)";
-            if (!Pay(b.faction, BuildCost(kind))) return "Not enough " + factions[b.faction].ResName;
+            if (!Pay(b.faction, BuildCost(kind, b.faction))) return "Not enough " + factions[b.faction].ResName;
             PlaceBuilding(b, slot, kind, false);
             return null;
         }

@@ -10,7 +10,8 @@ namespace Outpost.Sim
     {
         public string name;
         public float res, incomeMult = 1f, income;
-        public float powerCut;           // Uplink towers: leader powers cost less (used once powers exist, step 6)
+        public float powerCut;           // Uplink towers: leader powers recharge faster (Battle.PowerCooldown)
+        public readonly Dictionary<string, float> powerCd = new Dictionary<string, float>();   // power id -> seconds until ready
         public int popUsed, popCap = 25, tech = 1, kills, losses;
         public Unit hero;                // Commander / Queen while alive
         public float heroRespawn;        // seconds until the hero comes back (0 = not waiting)

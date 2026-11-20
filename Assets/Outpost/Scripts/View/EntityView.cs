@@ -22,7 +22,7 @@ namespace Outpost.View
         bool selected;
         public float topHeight = 2f;     // world units above the ground, for health bars
 
-        /// <summary>Set by the game: is this entity invisible to the player right now (cloaked, undetected)?</summary>
+        /// <summary>Set by the game: is this entity invisible to the player right now (fog of war, cloaked, undetected)?</summary>
         public static System.Func<Entity, bool> IsHidden;
 
         public static Color PlayerColor = new Color(0.35f, 0.95f, 0.55f);
@@ -141,6 +141,8 @@ namespace Outpost.View
             else
             {
                 var m = members[0];
+                bool unseen = IsHidden != null && IsHidden(e);     // enemy buildings in unexplored ground
+                if (m.gameObject.activeSelf == unseen) m.gameObject.SetActive(!unseen);
                 m.localRotation = rot;
                 float rise = 1f;
                 if (e is Building b && !b.Done) rise = Mathf.Lerp(0.15f, 1f, 1f - b.buildLeft / Mathf.Max(0.01f, b.buildTotal));

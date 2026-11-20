@@ -21,7 +21,8 @@ namespace Outpost.UI
 
         public void Refresh(Fx fx, CommandInput input)
         {
-            string mode = input.scanFrom != null ? "SCAN: left click anywhere on the map (Esc cancels)"
+            string mode = input.powerAim != null && input.battle != null ? input.battle.PowerName(input.powerAim).ToUpper() + ": left click the target (Esc cancels)"
+                : input.scanFrom != null ? "SCAN: left click anywhere on the map (Esc cancels)"
                 : input.abilityMode ? "ABILITY: left click where to use it (Esc cancels)"
                 : input.attackMode ? "ATTACK-MOVE: left click a target or the ground" : null;
             Ui.Show(banner, mode != null);

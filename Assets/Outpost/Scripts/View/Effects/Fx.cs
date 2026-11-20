@@ -307,6 +307,13 @@ namespace Outpost.View
             abilities.Use(u, id, Muzzle(u), Ground(u.Pos), Ground(at), r);
         }
 
+        /// <summary>A leader or alien power (or the landing of an Orbital Strike / sniper shot): AbilityEffects.Power.</summary>
+        public void Power(string faction, string id, Vector2 at, float radius)
+        {
+            Init();
+            abilities.Power(id, faction, Ground(at), radius * MapBuilder.Unit);
+        }
+
         /// <summary>Words that float up and fade (Python floating_text / number): RANK UP, Bio-Lab +16, crates.</summary>
         public void Float(Vector2 at, string text, string kind)
         {

@@ -29,7 +29,7 @@ namespace Outpost.Sim
         {
             { "player", new HashSet<int>() }, { "alien", new HashSet<int>() },
         };
-        public string leader = "vanguard";      // rts.json "leaders" passive for the player
+        public string leader = "vanguard";      // rts.json "leaders" passive for the player (change it with SetLeader)
         public float alienArmyMult = 1f;        // difficulty (rts.json ai.difficulties.army_mult)
         public readonly Dictionary<string, Faction> factions = new Dictionary<string, Faction>();
         public IBattleFx fx;
@@ -55,10 +55,12 @@ namespace Outpost.Sim
             foreach (var n in new[] { "player", "alien" })
                 factions[n] = new Faction { name = n, res = GameData.F(st, n == "player" ? "supplies" : "biomass", 500) };
             SetupMapControl();
+            SetupFog();
             hw = Mathf.CeilToInt(grid.PxW / Cell) + 1;
             hh = Mathf.CeilToInt(grid.PxH / Cell) + 1;
             cells = new List<Entity>[hw * hh];
             for (int i = 0; i < cells.Length; i++) cells[i] = new List<Entity>();
+            SetLeader(leader);
         }
 
         public static bool Hostile(string a, string b) => a != b;
@@ -88,6 +90,7 @@ namespace Outpost.Sim
             }
             detectT -= dt;
             if (detectT <= 0) { detectT = 0.25f; UpdateDetection(); }
+            TickFog(dt);
             UpdateMapControl(dt);
             for (int i = 0; i < buildings.Count; i++) if (buildings[i].alive) UpdateBuilding(buildings[i], dt);
             for (int i = 0; i < towers.Count; i++) if (towers[i].alive) UpdateTower(towers[i], dt);

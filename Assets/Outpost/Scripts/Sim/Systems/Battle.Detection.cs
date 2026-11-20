@@ -83,6 +83,7 @@ namespace Outpost.Sim
             float r = GameData.F(sc, "radius", 260);
             scans.Add(new ScanArea { pos = at, r = r, t = GameData.F(sc, "time", 12) });
             fx?.Zone(at, r, GameData.F(sc, "time", 12), "scan");
+            UpdateFog();
             UpdateDetection();
             return null;
         }

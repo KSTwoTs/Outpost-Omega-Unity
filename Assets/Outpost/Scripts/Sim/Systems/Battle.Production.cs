@@ -22,7 +22,7 @@ namespace Outpost.Sim
             if (f.tech < GameData.I(d, "tech", 1)) return $"Needs Tech {GameData.I(d, "tech", 1)}";
             int pop = GameData.I(d, "pop", 1);
             if (f.popUsed + pop > f.popCap) return "Population cap reached";
-            int cost = GameData.I(d, "cost", 100);
+            int cost = UnitCost(b.faction, kind);
             if (!Pay(b.faction, cost)) return "Not enough " + f.ResName;
             float t = GameData.F(d, "time", 10);
             b.queue.Add(new QueueItem { id = kind, t = t, total = t, cost = cost, pop = pop });
@@ -139,7 +139,7 @@ namespace Outpost.Sim
                 f.research.Add(q.id);
                 ApplyResearch(b.faction, q.id);
                 if (b.faction == "player")
-                    fx?.Message("player", "Research complete: " + GameData.S(b.Research?[q.id], "name", q.id));
+                    Note(b.Pos, "Research complete: " + GameData.S(b.Research?[q.id], "name", q.id), "player");
                 return;
             }
             if (q.type == "upgrade")
@@ -150,7 +150,7 @@ namespace Outpost.Sim
                 b.hp += extra;
                 b.name = GameData.S(b.Upgrade, "name", b.name);
                 fx?.Ring(b.Pos, b.radius + 20, "upgrade");
-                if (b.faction == "player") fx?.Message("player", b.name + " upgrade complete");
+                if (b.faction == "player") Note(b.Pos, b.name + " upgrade complete", "player");
                 return;
             }
             f.popUsed -= q.pop;

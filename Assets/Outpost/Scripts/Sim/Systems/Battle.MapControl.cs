@@ -71,6 +71,7 @@ namespace Outpost.Sim
                 }
             }
             Recount();
+            UpdateFog();
         }
 
         /// <summary>Wild nests are the Fungal Bloom: same stats as the alien unit, their own look.</summary>
@@ -88,8 +89,11 @@ namespace Outpost.Sim
 
         public IEnumerable<MapData.SiteData> FreeSites() => map.sites.Where(s => BaseAt(s) == null);
 
-        public int ExpansionCost(string faction) =>
-            GameData.I(GameData.Rts["expansion_cost"], faction == "player" ? "player" : "alien", 600);
+        public int ExpansionCost(string faction)
+        {
+            int c = GameData.I(GameData.Rts["expansion_cost"], faction == "player" ? "player" : "alien", 600);
+            return faction == "player" ? Cost(c, LeaderF("build_cost", 1f)) : c;
+        }
 
         /// <summary>Why this faction can't build a base here right now, or null if it can.</summary>
         public string CanExpand(string faction, MapData.SiteData site)
@@ -121,7 +125,7 @@ namespace Outpost.Sim
         {
             if (b == null || !b.alive) return "Nothing to recycle";
             if (b.IsHq) return "Can't recycle a base core";
-            int refund = Mathf.RoundToInt(BuildCost(b.kind) * (b.Done ? 0.5f : 1f));
+            int refund = Mathf.RoundToInt(BuildCost(b.kind, b.faction) * (b.Done ? 0.5f : 1f));
             while (b.queue.Count > 0) CancelQueue(b, 0);
             factions[b.faction].res += refund;
             Kill(b, null);
@@ -172,7 +176,8 @@ namespace Outpost.Sim
                     if (Mathf.Abs(r.progress) >= 1f && r.owner != who)
                     {
                         r.owner = who;
-                        fx?.Message(who, who == "player" ? "Relay captured: more income" : "The aliens took a relay");
+                        if (who == "player") Note(new Vector2(r.x, r.y), "Relay captured: more income", "player");
+                        else Alert(new Vector2(r.x, r.y), "The aliens took a relay", 5f);
                     }
                 }
             }

@@ -30,6 +30,7 @@ namespace Outpost.UI
         SelectionPanel selection;
         CommandCard card;
         MinimapPanel minimap;
+        PowerBar powers;
         float refreshT;
         bool showHelp = true;
 
@@ -37,6 +38,7 @@ namespace Outpost.UI
             "<b>Controls</b>  <color=#96a6bc>(F1 hides)</color>\n" +
             "<b>Select:</b> left click or drag \u00b7 Shift adds \u00b7 double-click takes all of that type\n" +
             "<b>Orders:</b> right click to move or attack \u00b7 A attack-move \u00b7 S stop \u00b7 H hold \u00b7 F ability\n" +
+            "<b>Powers:</b> Z X C V leader powers (or click the bar at the top), then left click the target\n" +
             "<b>Army:</b> Q whole army \u00b7 E army on screen \u00b7 G Commander \u00b7 Ctrl+1-5 set group \u00b7 1-5 recall\n" +
             "<b>Camera:</b> arrows, screen edge or middle drag \u00b7 wheel zooms \u00b7 Page Up/Down rotates \u00b7 Home resets\n" +
             "<b>Minimap:</b> left click moves the camera \u00b7 right click sends the selected units\n" +
@@ -72,6 +74,7 @@ namespace Outpost.UI
             selection = new SelectionPanel();
             card = new CommandCard();
             minimap = new MinimapPanel();
+            powers = new PowerBar();
 
             var bottom = Ui.Box("op-bottom");
             var cardWrap = Ui.Box("");
@@ -96,6 +99,8 @@ namespace Outpost.UI
             root.Add(bottom);
             root.Add(minimap.root);
             root.Add(resources.root);
+            root.Add(powers.root);
+            root.Add(powers.tip);
             root.Add(help);
             root.Add(helpHint);
             root.Add(overlay);
@@ -113,6 +118,7 @@ namespace Outpost.UI
             selection.Bind(b, inp);
             card.Bind(b, inp);
             minimap.Bind(b, inp, rig, map, minimapPicture);
+            powers.Bind(b, inp);
             input.overUi = OverUi;
             refreshT = 0;
         }
@@ -153,6 +159,7 @@ namespace Outpost.UI
             selection.Refresh();
             card.Refresh();
             minimap.Refresh();
+            powers.Refresh();
             Ui.Show(help, showHelp);
             Ui.Show(helpHint, !showHelp);
 

@@ -85,7 +85,7 @@ namespace Outpost.Sim
                 bool socket = spineTime && battle.FreeSocket(bs) >= 0;
                 if (socket && spines == 0 && built >= 3) goals.Add(("spine", battle.TowerCost("spine"), 5, () => battle.BuildTower(bs, "spine") == null));
                 string want = battle.FreeSlot(bs) >= 0 ? NextBuilding(bs, main ? buildOrder : ExpansionOrders[(i - 1) % ExpansionOrders.Length], main) : null;
-                if (want != null) goals.Add((want, battle.BuildCost(want), main ? Mathf.Min(2 + built, 8) : 5, () => battle.Build(bs, want) == null));
+                if (want != null) goals.Add((want, battle.BuildCost(want, "alien"), main ? Mathf.Min(2 + built, 8) : 5, () => battle.Build(bs, want) == null));
                 if (socket && spines < wantSpines) later.Add(("spine", battle.TowerCost("spine"), 8, () => battle.BuildTower(bs, "spine") == null));
             }
             var site = ExpansionDue(bases) ? NextSite(home) : null;

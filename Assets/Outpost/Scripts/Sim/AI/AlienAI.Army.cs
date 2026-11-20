@@ -69,6 +69,64 @@ namespace Outpost.Sim
             if (away.Count > 0) battle.OrderMove(away, at, true);
         }
 
+        static readonly string[] ScoutKinds = { "skitters", "gliders" };
+        static readonly string[] RaidKinds = { "gliders", "burrowers", "bomber", "skitters", "leeches" };
+
+        /// <summary>ai.py scout_and_raid. After 45 s one fast unit runs to a random site the Swarm doesn't hold. From
+        /// 330 s (420 on easy incomes), every 100-140 s, up to five fast or tunnelling units raid the player's least
+        /// defended base, expansions first. Like the Python AI it knows where the player's bases are (no fog for it).</summary>
+        void ScoutAndRaid(List<Unit> army)
+        {
+            if (!scouted && battle.time > 45)
+            {
+                var u = army.FirstOrDefault(x => ScoutKinds.Contains(x.kind) && !attackers.Contains(x.id));
+                if (u != null)
+                {
+                    var sites = battle.map.sites.Where(s => !battle.bases.Any(b => b.Alive && b.site == s && b.faction == "alien")).ToList();
+                    if (sites.Count > 0)
+                    {
+                        var s = sites[Random.Range(0, sites.Count)];
+                        battle.OrderMove(new[] { u }, new Vector2(s.x, s.y), false);
+                        raiders.Add(u.id);
+                        scouted = true;
+                        scoutsSent++;
+                    }
+                }
+            }
+            if (battle.time < nextRaid || battle.time < passiveUntil) return;
+            nextRaid = battle.time + 100 + Random.Range(0f, 40f);
+            var targets = battle.bases.Where(b => b.Alive && b.faction == "player").ToList();
+            if (targets.Count == 0) return;
+            var target = targets.OrderBy(RaidDefense).ThenBy(b => b.site.main != null ? 1 : 0).First();
+            var squad = army.Where(u => !attackers.Contains(u.id) && RaidKinds.Contains(u.kind)).Take(5).ToList();
+            if (squad.Count < 2) return;
+            var tp = new Vector2(target.x, target.y);
+            var walkers = new List<Unit>();
+            foreach (var u in squad)
+            {
+                if (u.kind == "burrowers" && battle.AbilityReady(u))
+                {
+                    float range = GameData.F(u.ability, "range", 0);
+                    float d = (tp - u.Pos).magnitude;
+                    var at = d > range && d > 0 ? u.Pos + (tp - u.Pos) * (range / d) : tp;
+                    if (battle.UseAbility(u, at)) continue;
+                }
+                walkers.Add(u);
+            }
+            if (walkers.Count > 0) battle.OrderMove(walkers, tp, true);
+            foreach (var u in squad) attackers.Add(u.id);
+            raidsSent++;
+            battle.Alert(tp, "Alien raiders spotted!", 0f);
+        }
+
+        /// <summary>ai.py defense(b): turrets count double, plus the base owner's units within 400 px.</summary>
+        int RaidDefense(Base b)
+        {
+            var at = new Vector2(b.x, b.y);
+            return b.sockets.Count(t => t != null) * 2 +
+                   battle.units.Count(u => u.alive && u.faction == b.faction && (u.Pos - at).sqrMagnitude < 400f * 400f);
+        }
+
         void ManageArmy(Base home, Faction f, List<Unit> army)
         {
             attackers.RemoveWhere(id => !army.Any(u => u.id == id));
@@ -97,7 +155,7 @@ namespace Outpost.Sim
                 }
                 wave++;
                 nextAttack = battle.time + attackEvery;
-                battle.fx?.Message("alien", $"Alien attack wave {wave} incoming!");
+                battle.Alert(tp, $"Alien attack wave {wave} incoming!", 0f);
             }
 
             // attackers that went idle keep pushing

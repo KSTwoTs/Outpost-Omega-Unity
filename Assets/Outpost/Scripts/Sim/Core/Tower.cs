@@ -22,6 +22,7 @@ namespace Outpost.Sim
         public JArray tiers;
         public float hpMult = 1f;               // Turret Plating research
         public int costPaid;                    // everything paid so far (sell refunds 60%)
+        public float lifetime = -1f;            // Turret Drop towers leave after this many seconds (-1 = stays)
         // scale (rts.json towers; 1 for Spines and Bunkers)
         public float scaleHp = 1f, scaleRange = 1f, scaleDamage = 1f, scaleCost = 2f;
         // shown / derived numbers for the current tier

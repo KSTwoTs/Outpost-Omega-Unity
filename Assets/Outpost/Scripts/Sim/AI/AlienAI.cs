@@ -31,6 +31,11 @@ namespace Outpost.Sim
         readonly HashSet<int> attackers = new HashSet<int>();
         readonly HashSet<int> raiders = new HashSet<int>();          // units sent to take relays
         readonly HashSet<int> escorts = new HashSet<int>();          // units holding the next expansion site
+        bool scouted;
+        float nextRaid;
+        readonly float passiveUntil;
+        /// <summary>How many scouts and raids the AI has sent (headless tests).</summary>
+        public int scoutsSent, raidsSent;
 
         public AlienAI(Battle b, string difficulty = "Normal")
         {
@@ -44,6 +49,9 @@ namespace Outpost.Sim
             attackEvery = GameData.F(d, "attack_every", 120);
             nextAttack = GameData.F(d, "first_attack", 220);
             expandAt = GameData.F(d, "expand_at", 270);
+            nextRaid = GameData.F(d, "income", 1f) >= 1f ? 330f : 420f;
+            passiveUntil = GameData.F(d, "passive_until", 0);
+            powerStart = Mathf.Max(GameData.F(d, "first_attack", 220) + 120, GameData.F(d, "passive_until", 0));
         }
 
         /// <summary>The Swarm's living bases, the oldest (its main Hive) first.</summary>
@@ -88,8 +96,10 @@ namespace Outpost.Sim
             Research(f);
             Defend(bases, army);
             ManageArmy(home, f, army);
+            ScoutAndRaid(army);
             Relays(home, army);
             Escort(bases, army);
+            CastPowers(bases, army);
             if (f.tech >= 3 && !queenCalled && f.hero == null)
             {
                 queenCalled = true;

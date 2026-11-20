@@ -88,7 +88,7 @@ Sim/
 │  ├─ Battle.cs               now · the battle: lists of everything, Tick, setup, victory
 │  ├─ BattleConfig.cs         M2 · everything that defines one battle: map, size, difficulty, leader,
 │  │                                loadout, mode rules, strains. The only way a battle is created
-│  ├─ IBattleFx.cs            now · split out of Battle.cs; M1.5 added TowerFired, Ability and Float (notifications only)
+│  ├─ IBattleFx.cs            now · split out of Battle.cs; M1.5 added TowerFired, Ability and Float, M1.6 Power (notifications only)
 │  ├─ GameData.cs             now · reads the JSON data
 │  ├─ NavGrid.cs              now · walkable tiles and pathfinding
 │  ├─ Entity.cs, Unit.cs, Building.cs, Tower.cs, Base.cs, Faction.cs
@@ -109,14 +109,14 @@ Sim/
 │  ├─ Battle.Towers.cs        now · the tower update · M1.4 adds the full loadout, tiers, upgrade and sell
 │  ├─ TowerBehaviors.cs       M1.4 · the behavior types that cover all 34 towers
 │  ├─ Battle.Bunkers.cs       M1.4 · bunkers and garrisons
-│  ├─ Battle.Powers.cs        M1.6 · leader powers and alien powers
-│  ├─ Leaders.cs              M1.6 · the 9 leaders' passives
-│  └─ Fog.cs                  M1.7 · fog of war and what each side has seen
+│  ├─ Battle.Powers.cs        now · leader powers (Z X C + the leader's V) and alien powers; cooldowns tick in Economy
+│  ├─ Leaders.cs              now · the 9 leaders' passives (SetLeader, costs, structure HP) · M2: picked on SkirmishSetup
+│  └─ Fog.cs                  now · fog of war per side, what each side has seen (Seen), the positioned alert log
 ├─ AI/
 │  ├─ AlienAI.cs              now · the Swarm's commander
 │  ├─ AlienAI.Economy.cs      now · shopping list and savings, expansions, unit production, evolutions
-│  ├─ AlienAI.Army.cs         now · defense, relay raiders, expansion escorts, attack waves, the Queen · M1.7 scouting and raids
-│  ├─ AlienAI.Powers.cs       M1.6 · when it casts Acid Rain, Spore Storm, Swarm Call
+│  ├─ AlienAI.Army.cs         now · defense, relay raiders, expansion escorts, attack waves, the Queen, scouting and raids
+│  ├─ AlienAI.Powers.cs       now · when it casts Acid Rain, Spore Storm, Swarm Call
 │  └─ AllyAI.cs               M4 · the allied human commander for 2v2
 ├─ Missions/                  M3 · the campaign
 │  ├─ Mission.cs              runs one operation from campaign.json
@@ -150,11 +150,11 @@ View/
 │  ├─ Fx.cs              now · the IBattleFx receiver; hands work to the files below (moved here from View/ at M1.5)
 │  ├─ WeaponEffects.cs   now · muzzle flashes, tracers, projectiles, explosions, beams, lightning, patches, deaths,
 │  │                           the looks of all 34 tower behaviours; FxColors (the Python palette)
-│  ├─ AbilityEffects.cs  now · one visual per unit ability, Scan, generic rings; Power() is the hook for M1.6 powers
+│  ├─ AbilityEffects.cs  now · one visual per unit ability, Scan, generic rings; Power() draws simple first looks for every power
 │  └─ EffectPool.cs      now · recycles every effect object (quads, lines, 4 shared particle systems), capped
 ├─ World/
-│  ├─ Lighting.cs        M1.8 · sun, shadows, glowing structures, color grade per biome
-│  ├─ FogView.cs         M1.7 · draws the fog of war
+│  ├─ Lighting.cs        now · sun, shadows, ambient, haze, post Volume (tonemap, grade, bloom, vignette) and lava/acid glow per map theme (Mood)
+│  ├─ FogView.cs         now · draws the fog of war (sheet over the ground, one texel per tile)
 │  ├─ Markers.cs         now · health, shield and progress bars over units, rank stars, relay capture bars, the drag box
 │  ├─ MapProps.cs        now · base site pads, base aprons, relay towers (by owner), supply crates
 │  ├─ Creep.cs           M4 · creep spreading around alien bases
@@ -181,9 +181,9 @@ UI/
 │  ├─ ResourceBar.cs          now · supplies, income, pop, tech, clock, next attack, Commander respawn
 │  ├─ SelectionPanel.cs       now · portrait, health, shield, stats, buffs, the build queue; a tile per type for groups
 │  ├─ CommandCard.cs          now · the 5 x 3 button grid: orders, abilities, build, turrets, train, research, upgrades, Scan
-│  ├─ MinimapPanel.cs         now · M1.7 adds fog and alert pings
+│  ├─ MinimapPanel.cs         now · with fog and alert pings
 │  ├─ AlertsPanel.cs          now · messages, aim-mode banner, toast · M2 adds the "last alert" jump
-│  ├─ PowerBar.cs             M1.6 · Z X C V leader powers
+│  ├─ PowerBar.cs             now · Z X C V leader powers (top centre; aiming goes through CommandInput.powerAim)
 │  ├─ ObjectivesPanel.cs      M3 · campaign objectives
 │  └─ BossBar.cs              M3 · Siege Run boss health and phases
 ├─ Menus/                     M2
@@ -242,7 +242,7 @@ Editor/
 Assets/Outpost/
 ├─ Art/
 │  ├─ Materials/     M1.2 · shared materials for the models (today they are made in code)
-│  ├─ Shaders/       now · FxAdditive / FxAlpha (effects) · M1.8 team color and glow · M4 creep and decals
+│  ├─ Shaders/       now · FxAdditive / FxAlpha (effects) · team color and glow (optional, not started; was M1.8) · M4 creep and decals
 │  ├─ Effects/       M1.5 · empty on purpose: effect textures are drawn in code (EffectPool.MakeTexture);
 │  │                        hand-made textures or particle prefabs go here if the look needs them later
 │  └─ Icons/         M2 · ability, order, research and resource icons (portraits are made at run time)

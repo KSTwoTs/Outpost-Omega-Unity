@@ -157,6 +157,19 @@ namespace Outpost.Sim
         {
             t.TickStatus(dt);
             t.spin += dt;
+            if (t.lifetime >= 0)
+            {
+                // Turret Drop towers leave when their time is up
+                t.lifetime -= dt;
+                if (t.lifetime <= 0)
+                {
+                    t.alive = false;
+                    TowerGone(t, false);
+                    fx?.Ring(t.Pos, 24, "energy");
+                    fx?.Died(t);
+                    return;
+                }
+            }
             if (!t.Done)
             {
                 t.buildLeft -= dt;

@@ -34,6 +34,7 @@ namespace Outpost.Sim
             if (t == null || !t.alive || amount <= 0) return 0;
             if (t is Unit tu && tu.Has("burrowed")) return 0;
             float amt = amount * GameData.Counter(cls, t.cls) * (bonus != null ? GameData.F(bonus, t.cls, 1f) : 1f);
+            if (faction == "player" && t.slowT > 0) amt *= LeaderF("slowed_damage", 1f);      // rime: slowed aliens take more
             if (!pierce) amt = Mathf.Max(amt * 0.25f, amt - t.armor);
             if (t.shield > 0)
             {
@@ -43,6 +44,11 @@ namespace Outpost.Sim
             }
             t.hp -= amt;
             t.lastHitT = 0;
+            if (t.faction == "player" && src != null)
+            {
+                if (t is Building) Alert(t.Pos, "Base under attack!");
+                else if (t.IsUnit && !InView(t.Pos)) Alert(t.Pos, "Our forces are under attack", 18f);
+            }
             if (t.hp <= 0) Kill(t, src);
             return amt;
         }
@@ -87,14 +93,14 @@ namespace Outpost.Sim
             {
                 ef.hero = null;
                 ef.heroRespawn = GameData.F(e.data, "respawn", 30);
-                if (e.faction == "player") fx?.Message("alien", $"Commander down! Respawning at HQ in {(int)ef.heroRespawn} s");
+                if (e.faction == "player") Alert(e.Pos, $"Commander down! Respawning at HQ in {(int)ef.heroRespawn} s", 0f);
             }
             if (e is Building b)
             {
                 grid.BlockCircle(b.x, b.y, b.IsHq ? 44 : 26, -1);
                 if (b.IsHq)
                 {
-                    if (b.faction == "player") fx?.Message("alien", "We lost a base!");
+                    if (b.faction == "player") Alert(b.Pos, "We lost a base!", 0f);
                     // the base falls with its core
                     foreach (var s in b.baseRef.slots) if (s != null && s.alive) Kill(s, src);
                     foreach (var s in b.baseRef.sockets) if (s != null && s.alive) Kill(s, src);
@@ -173,7 +179,17 @@ namespace Outpost.Sim
                 if (s.t > 0) continue;
                 strikes.RemoveAt(i);
                 Splash(s.pos, s.r, s.dmg, s.cls, null, s.faction, s.air);
-                fx?.Trail(s.from, s.pos, s.faction);
+                if (s.kind == "orbital")
+                {
+                    fx?.Power(s.faction, "orbital_hit", s.pos, s.r);
+                    if (s.burn)
+                    {
+                        zones.Add(new Zone { pos = s.pos, r = s.r, dps = 25, t = 6, faction = s.faction, kind = "fire" });
+                        fx?.Zone(s.pos, s.r, 6, "fire");
+                    }
+                    continue;
+                }
+                if (s.kind == null) fx?.Trail(s.from, s.pos, s.faction);
                 fx?.Impact(s.pos, s.faction, s.r, false);
             }
         }
