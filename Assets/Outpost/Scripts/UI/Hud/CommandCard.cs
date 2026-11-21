@@ -12,6 +12,7 @@ namespace Outpost.UI
     public class Cmd
     {
         public string id, label, model, tip, key;
+        public string action;           // Hotkeys id whose key the button shows (else its card grid key)
         public Func<string> sub;        // the small line under the picture (cost, cooldown, state)
         public Func<bool> enabled;
         public Func<float> fill;        // 0..1 dark overlay from the bottom (cooldown or progress left)
@@ -34,10 +35,8 @@ namespace Outpost.UI
         CommandInput input;
         string sig;
 
-        static readonly string[] PlayerBuild = { "supply", "barracks", "depot", "reactor", "airpad", "armory", "sensor", "shieldgen", "specops" };
-        // until the loadout screen exists (Milestone 2) the Python game's default loadout is offered, plus the Bunker
-        static List<string> playerTowers;
-        static List<string> PlayerTowers => playerTowers ??= TowerBehaviors.DefaultLoadout();
+        public static readonly string[] PlayerBuild = { "supply", "barracks", "depot", "reactor", "airpad", "armory", "sensor", "shieldgen", "specops" };
+        // the turret page offers the player's loadout (picked on the Skirmish setup screen) plus the Bunker
         bool towerPage;     // the Command Post card shows its turret page
 
         public CommandCard()
@@ -97,12 +96,12 @@ namespace Outpost.UI
                 signature = "u:" + string.Join(",", units.Select(u => u.kind).Distinct());
                 list.Add(new Cmd
                 {
-                    id = "attack", label = "Attack-move", key = "A", tip = "<b>Attack-move</b>\nLeft click a target or the ground. Units fight anything they meet on the way.",
+                    id = "attack", label = "Attack-move", action = "attack_move", tip = "<b>Attack-move</b>\nLeft click a target or the ground. Units fight anything they meet on the way.",
                     lit = () => input.attackMode,
                     click = () => { input.attackMode = true; input.abilityMode = false; },
                 });
-                list.Add(new Cmd { id = "stop", label = "Stop", key = "S", tip = "<b>Stop</b>\nDrop the current order.", click = () => battle.OrderStop(input.MyUnits, false) });
-                list.Add(new Cmd { id = "hold", label = "Hold", key = "H", tip = "<b>Hold position</b>\nStay put and only shoot what comes into range.", click = () => battle.OrderStop(input.MyUnits, true) });
+                list.Add(new Cmd { id = "stop", label = "Stop", action = "stop", tip = "<b>Stop</b>\nDrop the current order.", click = () => battle.OrderStop(input.MyUnits, false) });
+                list.Add(new Cmd { id = "hold", label = "Hold", action = "hold", tip = "<b>Hold position</b>\nStay put and only shoot what comes into range.", click = () => battle.OrderStop(input.MyUnits, true) });
                 bool first = true;
                 foreach (var g in units.Where(u => u.ability != null).GroupBy(u => GameData.S(u.ability, "id", "")).Take(6))
                 {
@@ -114,7 +113,7 @@ namespace Outpost.UI
                     Func<bool> locked = () => need != null && !P.research.Contains(need);
                     list.Add(new Cmd
                     {
-                        id = "ab:" + aid, label = GameData.S(one.ability, "name", "Ability"), model = one.kind, key = first ? "F" : null,
+                        id = "ab:" + aid, label = GameData.S(one.ability, "name", "Ability"), model = one.kind, action = first ? "ability" : null,
                         tip = $"<b>{GameData.S(one.ability, "name", "Ability")}</b>  ({one.name})\n{AbilityText(one)}",
                         enabled = () => !locked() && mine().Any(battle.AbilityReady),
                         sub = () =>
@@ -146,7 +145,7 @@ namespace Outpost.UI
             if (!b.IsHq)
                 list.Add(new Cmd
                 {
-                    id = "recycle", label = "Recycle", key = "Del",
+                    id = "recycle", label = "Recycle", action = "recycle",
                     tip = "<b>Recycle</b>\nRemoves this building and frees its slot. You get half its cost back, or all of it while it is still being built.",
                     sub = () => "+" + Mathf.RoundToInt(battle.BuildCost(b.kind) * (b.Done ? 0.5f : 1f)),
                     click = () => Report(battle.Demolish(b)),
@@ -157,7 +156,7 @@ namespace Outpost.UI
             {
                 var tb = b.baseRef;
                 list.Add(new Cmd { id = "back", label = "Back", tip = "<b>Back</b>\nBack to buildings.", click = () => { towerPage = false; sig = null; } });
-                foreach (var k in PlayerTowers.Concat(new[] { "bunker" }))
+                foreach (var k in battle.Player.loadout.Concat(new[] { "bunker" }))
                 {
                     bool bunker = k == "bunker";
                     var d = bunker ? (Newtonsoft.Json.Linq.JObject)GameData.Rts["bunker"] : GameData.Tower(k);
@@ -167,8 +166,7 @@ namespace Outpost.UI
                     list.Add(new Cmd
                     {
                         id = "tower:" + k, label = GameData.S(d, "name", k), model = bunker ? "bld_bunker" : "tur_" + k,
-                        tip = $"<b>{GameData.S(d, "name", k)}</b>   {battle.TowerCost(k)} Supplies\n" +
-                              (bunker ? "" : $"{GameData.S(d, "category", "")} turret on one of this base's sockets. 3 tiers: select it to upgrade or sell.\n") + desc,
+                        tip = Tips.Tower(battle, k),
                         enabled = () => battle.FreeSocket(tb) >= 0,
                         sub = () => battle.FreeSocket(tb) < 0 ? "no sockets" : battle.TowerCost(kind).ToString(),
                         click = () => Report(battle.BuildTower(tb, kind)),
@@ -189,7 +187,7 @@ namespace Outpost.UI
                     list.Add(new Cmd
                     {
                         id = "build:" + k, label = GameData.S(d, "name", k), model = "bld_" + k,
-                        tip = $"<b>{GameData.S(d, "name", k)}</b>   {battle.BuildCost(k)} Supplies, {GameData.F(d, "time", 20):0} s\n{GameData.S(d, "desc", "")}",
+                        tip = Tips.Building(battle, k),
                         enabled = () => P.tech >= tech && battle.FreeSlot(bs) >= 0,
                         sub = () => P.tech < tech ? $"Tech {tech}" : battle.FreeSlot(bs) < 0 ? "no slots" : battle.BuildCost(kind).ToString(),
                         click = () => Report(battle.Build(bs, kind)),
@@ -213,9 +211,9 @@ namespace Outpost.UI
                 list.Add(new Cmd
                 {
                     id = "train:" + k, label = GameData.S(d, "name", k), model = k,
-                    tip = $"<b>{GameData.S(d, "name", k)}</b>   {GameData.I(d, "cost")} Supplies, pop {GameData.I(d, "pop", 1)}, {GameData.F(d, "time", 10):0} s\n{GameData.S(d, "desc", "")}",
+                    tip = Tips.Unit(battle, k),
                     enabled = () => P.tech >= tech,
-                    sub = () => P.tech < tech ? $"Tech {tech}" : GameData.I(d, "cost").ToString(),
+                    sub = () => P.tech < tech ? $"Tech {tech}" : battle.UnitCost("player", kind).ToString(),
                     click = () => Report(battle.QueueUnit(b, kind)),
                 });
             }
@@ -232,7 +230,7 @@ namespace Outpost.UI
                     list.Add(new Cmd
                     {
                         id = "research:" + rid, label = GameData.S(rd, "name", rid),
-                        tip = $"<b>Research: {GameData.S(rd, "name", rid)}</b>   {GameData.I(rd, "cost")} Supplies, {GameData.F(rd, "time", 30):0} s\n{GameData.S(rd, "desc", "")}",
+                        tip = Tips.Research(battle, rd, rid, research),
                         enabled = () => !P.research.Contains(rid) && !P.researching.Contains(rid) && P.tech >= tech && !chained(),
                         sub = () => P.research.Contains(rid) ? "done" : P.researching.Contains(rid) ? "researching"
                             : P.tech < tech ? $"Tech {tech}" : chained() ? "needs " + GameData.S(research[after], "name", after) : GameData.I(rd, "cost").ToString(),
@@ -283,10 +281,7 @@ namespace Outpost.UI
                 list.Add(new Cmd
                 {
                     id = "tupgrade", label = t.tier + 1 >= t.MaxTier ? "Max tier" : $"Upgrade to tier {t.tier + 2}", model = EntityView.ModelNameFor(t),
-                    tip = t.UpgradeCost() < 0 ? "<b>Fully upgraded</b>"
-                        : $"<b>Upgrade to tier {t.tier + 2}</b>   {t.UpgradeCost()} Supplies\n+25% hit points" +
-                          (GameData.F(nst, "range") > 0 ? $", range {GameData.F(nst, "range") * t.scaleRange:0}" : "") +
-                          (GameData.F(nst, "damage") > 0 ? $", damage {GameData.F(nst, "damage") * t.scaleDamage:0}" : "") + ".",
+                    tip = Tips.TowerUpgrade(battle, t),
                     enabled = () => t.Done && t.UpgradeCost() >= 0 && battle.Player.res >= t.UpgradeCost(),
                     sub = () => t.UpgradeCost() < 0 ? "max" : !t.Done ? "building" : t.UpgradeCost().ToString(),
                     click = () => Report(battle.UpgradeTower(t)),
@@ -294,7 +289,7 @@ namespace Outpost.UI
             }
             list.Add(new Cmd
             {
-                id = "sell", label = "Sell", key = "Del",
+                id = "sell", label = "Sell", action = "recycle",
                 tip = "<b>Sell</b>\nRemoves the turret and frees its socket. You get 60% of everything paid for it back." +
                       (t.IsBunker ? " Squads inside walk out unhurt." : ""),
                 sub = () => "+" + battle.SellValue(t),
@@ -330,6 +325,7 @@ namespace Outpost.UI
         {
             var sel = input.selection.Where(e => e.alive).ToList();
             var cmds = Commands(sel, out string s);
+            s += "|k" + Hotkeys.Version;
             Ui.Show(root, cmds.Count > 0);
             if (s != sig)
             {
@@ -347,14 +343,32 @@ namespace Outpost.UI
             }
         }
 
+        /// <summary>A card hotkey (Alt + grid key): clicks button n (0-14) if it is there and enabled.</summary>
+        public bool Press(int index)
+        {
+            if (input == null || battle == null) return false;
+            Refresh();
+            if (index < 0 || index >= buttons.Count) return false;
+            var c = buttons[index].cmd;
+            if (c.enabled != null && !c.enabled()) return false;
+            c.click?.Invoke();
+            return true;
+        }
+
+        /// <summary>Test helper: the ids of the buttons now on the card, in grid order.</summary>
+        public List<string> ButtonIds() => buttons.Select(b => b.cmd.id).ToList();
+
         void Rebuild(List<Cmd> cmds)
         {
             root.Clear();
             buttons.Clear();
             Ui.Show(tip, false);
+            int slot = 0;
             foreach (var c in cmds.Take(15))
             {
                 var cmd = c;
+                string keyText = c.key ?? Hotkeys.Label(c.action ?? "card_" + (slot + 1));
+                slot++;
                 var el = Ui.Button("op-cmd", () => cmd.click?.Invoke());
                 var icon = Ui.Box("op-cmd__icon");
                 var fill = Ui.Box("op-cmd__fill");
@@ -364,7 +378,7 @@ namespace Outpost.UI
                 el.Add(Ui.Text(c.label, "op-cmd__label"));
                 el.Add(sub);
                 Ui.Show(sub, c.sub != null);
-                if (c.key != null) el.Add(Ui.Text(c.key, "op-cmd__key"));
+                if (!string.IsNullOrEmpty(keyText)) el.Add(Ui.Text(keyText, "op-cmd__key"));
                 el.RegisterCallback<PointerEnterEvent>(_ =>
                 {
                     tipText.text = cmd.tip ?? cmd.label;

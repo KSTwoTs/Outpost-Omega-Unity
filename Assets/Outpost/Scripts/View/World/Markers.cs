@@ -11,6 +11,11 @@ namespace Outpost.View
     public class Markers : MonoBehaviour
     {
         public Battle battle;
+        /// <summary>Set by the HUD while a full-screen panel is up (pause menu, settings, controls): no bars drawn over it.</summary>
+        public static bool Suppressed;
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetStatics() => Suppressed = false;
         public CommandInput input;
         public Camera cam;
         public Outpost.Content.MapData map;
@@ -27,7 +32,7 @@ namespace Outpost.View
 
         void OnGUI()
         {
-            if (battle == null || input == null || cam == null || Event.current.type != EventType.Repaint) return;
+            if (battle == null || input == null || cam == null || Suppressed || Event.current.type != EventType.Repaint) return;
             if (small == null) small = new GUIStyle(GUI.skin.label) { fontSize = 12 };
             HealthBars();
             RelayBars();

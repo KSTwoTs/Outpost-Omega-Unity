@@ -28,11 +28,9 @@ namespace Outpost.EditorTools
         {
             var sb = new StringBuilder();
             GameData.Reload();
-            Random.InitState(seed);
             var map = MapBuilder.Load(mapId);
-            var b = new Battle(map);
-            b.SetLeader(leader);
-            b.StandardStart(difficulty);
+            // the same path the game uses: seed, leader, default loadout, StandardStart
+            var b = new BattleConfig { mapId = mapId, difficulty = difficulty, leader = leader, seed = seed }.Create(map);
             var casts = new Dictionary<string, int>();
             var lastCd = new Dictionary<string, float>();
             var home = b.bases.FirstOrDefault(x => x.faction == "player");

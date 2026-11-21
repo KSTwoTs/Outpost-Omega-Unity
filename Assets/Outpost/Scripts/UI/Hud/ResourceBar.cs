@@ -8,7 +8,7 @@ namespace Outpost.UI
     public class ResourceBar
     {
         public readonly VisualElement root;
-        readonly Label supplies, pop, tech, clock, attack, hero;
+        readonly Label supplies, pop, tech, clock, attack, hero, speedText;
 
         public ResourceBar()
         {
@@ -19,10 +19,14 @@ namespace Outpost.UI
             root.Add(clock = Ui.Text("", "op-res op-res--plain"));
             root.Add(attack = Ui.Text("", "op-res op-res--bad"));
             root.Add(hero = Ui.Text("", "op-res op-res--gold"));
+            root.Add(speedText = Ui.Text("", "op-res op-res--bad"));
         }
 
-        public void Refresh(Battle b)
+        /// <summary>speed: the game speed (Tab); shown as x1.5 / x2 when not x1 (Python draws it by the clock).</summary>
+        public void Refresh(Battle b, float speed = 1f)
         {
+            Ui.Show(speedText, speed != 1f);
+            if (speed != 1f) speedText.text = "x" + speed.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture);
             var f = b.Player;
             supplies.text = $"Supplies {(int)f.res}  <size=14>(+{f.income:0.0}/s)</size>";
             pop.text = $"Pop {f.popUsed}/{f.popCap}";

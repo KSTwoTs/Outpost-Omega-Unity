@@ -11,7 +11,7 @@ namespace Outpost.EditorTools
     public static class OutpostMenu
     {
         const string SandboxPath = "Assets/Outpost/Scenes/Sandbox.unity";
-        const string SkirmishPath = "Assets/Outpost/Scenes/Skirmish.unity";
+        const string SkirmishPath = "Assets/Outpost/Scenes/Battle.unity";   // Skirmish.unity until M2 (renamed, GUID kept)
 
         static OutpostMenu()
         {
@@ -53,7 +53,7 @@ namespace Outpost.EditorTools
             if (EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) EditorSceneManager.OpenScene(SandboxPath);
         }
 
-        [MenuItem("Outpost/Create or Reset Skirmish Scene", priority = 10)]
+        [MenuItem("Outpost/Create or Reset Battle Scene", priority = 10)]
         public static void CreateSkirmishMenu() => CreateSkirmish(true);
 
         public static void CreateSkirmish(bool open)
@@ -62,21 +62,21 @@ namespace Outpost.EditorTools
             System.IO.Directory.CreateDirectory("Assets/Outpost/Scenes");
             var previous = EditorSceneManager.GetActiveScene().path;
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-            new GameObject("Outpost Skirmish").AddComponent<Outpost.Game.SkirmishBootstrap>();
+            new GameObject("Battle Session").AddComponent<Outpost.Game.BattleSession>();
             var cam = new GameObject("Main Camera");
             cam.tag = "MainCamera";
             cam.AddComponent<Camera>();
             cam.AddComponent<AudioListener>();
             EditorSceneManager.SaveScene(scene, SkirmishPath);
             var list = EditorBuildSettings.scenes.ToList();
-            list.RemoveAll(s => s.path == SkirmishPath);
-            list.Insert(0, new EditorBuildSettingsScene(SkirmishPath, true));
+            // Boot and MainMenu stay first; the battle scene is added after them if it is missing
+            if (!list.Any(s => s.path == SkirmishPath)) list.Add(new EditorBuildSettingsScene(SkirmishPath, true));
             EditorBuildSettings.scenes = list.ToArray();
             if (!open && !string.IsNullOrEmpty(previous)) EditorSceneManager.OpenScene(previous);
-            Debug.Log("[Outpost] Skirmish scene ready: " + SkirmishPath + ". Press Play to fight.");
+            Debug.Log("[Outpost] Battle scene ready: " + SkirmishPath + ". Press Play to fight a default Skirmish (or play Boot.unity for the menus).");
         }
 
-        [MenuItem("Outpost/Open Skirmish Scene", priority = 11)]
+        [MenuItem("Outpost/Open Battle Scene", priority = 11)]
         public static void OpenSkirmish()
         {
             if (!System.IO.File.Exists(SkirmishPath)) { CreateSkirmish(true); return; }

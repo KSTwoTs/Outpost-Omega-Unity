@@ -18,6 +18,18 @@ namespace Outpost.Sim
         public static JObject Building(string kind) => Rts["buildings"]?[kind] as JObject;
         public static JObject Tower(string kind) => Towers[kind] as JObject;
 
+        static JObject commanders, run;
+        /// <summary>data/commanders.json: names, roles, bios, tips and the classic hero bonuses (Commanders screen).</summary>
+        public static JObject Commanders => commanders ??= Load("commanders.json");
+        /// <summary>data/run.json (the classic Siege Run; the Commanders screen reads hero_decks).</summary>
+        public static JObject Run => run ??= Load("run.json");
+
+        static JObject Load(string file)
+        {
+            var p = Path.Combine(Dir, file);
+            return File.Exists(p) ? JObject.Parse(File.ReadAllText(p)) : new JObject();
+        }
+
         /// <summary>Damage multiplier, attacker class -> target class (inf beats air, air beats veh, veh beats inf).</summary>
         public static float Counter(string attacker, string target)
         {
@@ -61,6 +73,8 @@ namespace Outpost.Sim
         {
             rts = null;
             towers = null;
+            commanders = null;
+            run = null;
         }
     }
 }

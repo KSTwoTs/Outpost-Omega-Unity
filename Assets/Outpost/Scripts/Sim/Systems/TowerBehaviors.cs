@@ -79,6 +79,62 @@ namespace Outpost.Sim
             return res;
         }
 
+        public static readonly string[] CategoryLabels = { "ASSAULT", "CONTROL", "SUPPORT" };
+
+        /// <summary>How many towers of one category a loadout may hold (rts.json towers.per_category, 3).</summary>
+        public static int PerCategory => GameData.I(GameData.Rts["towers"], "per_category", 3);
+
+        public static string CategoryOf(string kind) => GameData.S(GameData.Tower(kind), "category");
+
+        /// <summary>The enabled towers of one category, cheapest first (the setup screen's columns, as rts.py).</summary>
+        public static List<string> TowersIn(string cat)
+        {
+            var res = new List<string>();
+            foreach (var p in GameData.Towers.Properties())
+                if (p.Value is JObject d && GameData.S(d, "category") == cat && GameData.B(d, "enabled", true)) res.Add(p.Name);
+            return System.Linq.Enumerable.ToList(System.Linq.Enumerable.OrderBy(res, k => GameData.F(GameData.Tower(k), "cost", 0f)));
+        }
+
+        public static int CountIn(List<string> loadout, string cat)
+        {
+            int n = 0;
+            foreach (var k in loadout) if (CategoryOf(k) == cat) n++;
+            return n;
+        }
+
+        /// <summary>A loadout without unknown, disabled or repeated towers and with at most PerCategory per category (earlier picks win).</summary>
+        public static List<string> CleanLoadout(IEnumerable<string> kinds)
+        {
+            var res = new List<string>();
+            if (kinds == null) return res;
+            int per = PerCategory;
+            foreach (var k in kinds)
+            {
+                var d = k == null ? null : GameData.Tower(k);
+                if (d == null || !GameData.B(d, "enabled", true) || res.Contains(k)) continue;
+                string cat = GameData.S(d, "category");
+                if (System.Array.IndexOf(Categories, cat) < 0 || CountIn(res, cat) >= per) continue;
+                res.Add(k);
+            }
+            return res;
+        }
+
+        /// <summary>
+        /// A click on the setup screen (rts.py RTSSetupScene "tower"): a picked tower is removed, otherwise it is added,
+        /// dropping the oldest pick of its category when that category is full.
+        /// </summary>
+        public static void ToggleLoadout(List<string> loadout, string kind)
+        {
+            if (loadout.Remove(kind)) return;
+            var d = GameData.Tower(kind);
+            if (d == null) return;
+            string cat = GameData.S(d, "category");
+            if (CountIn(loadout, cat) >= PerCategory)
+                for (int i = 0; i < loadout.Count; i++)
+                    if (CategoryOf(loadout[i]) == cat) { loadout.RemoveAt(i); break; }
+            loadout.Add(kind);
+        }
+
         /// <summary>Shots per second: beams and flamers tick 5 times a second, the lightning rod fires every 1.7 s.</summary>
         public static float FireRate(string behavior, JToken stats)
         {

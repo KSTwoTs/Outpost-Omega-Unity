@@ -139,6 +139,8 @@ namespace Outpost.UI
                 var notes = new List<string>();
                 notes.Add(u.hitsAir ? "Hits air and ground" : "Ground targets only");
                 notes.Add($"Armor {u.armor:0}");
+                string mu = Tips.Matchup(u.data, true);
+                if (mu.Length > 0) notes.Add(mu);
                 if (u.buffs.Count > 0) notes.Add("<color=#ffd77a>" + string.Join(", ", u.buffs.Select(kv => $"{kv.Key} {Ui.Secs(kv.Value)}")) + "</color>");
                 l3 = string.Join("    ", notes);
             }

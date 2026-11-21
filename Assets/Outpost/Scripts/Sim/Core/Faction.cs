@@ -13,6 +13,8 @@ namespace Outpost.Sim
         public float powerCut;           // Uplink towers: leader powers recharge faster (Battle.PowerCooldown)
         public readonly Dictionary<string, float> powerCd = new Dictionary<string, float>();   // power id -> seconds until ready
         public int popUsed, popCap = 25, tech = 1, kills, losses;
+        public float spent, gathered;    // resources paid out and earned over the battle (results screen, as sim.py)
+        public readonly List<string> loadout = new List<string>();   // towers this side may build (the player's setup pick)
         public Unit hero;                // Commander / Queen while alive
         public float heroRespawn;        // seconds until the hero comes back (0 = not waiting)
         public readonly HashSet<string> research = new HashSet<string>();

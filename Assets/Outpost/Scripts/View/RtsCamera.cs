@@ -6,8 +6,8 @@ namespace Outpost.View
     /// <summary>
     /// Halo Wars style camera: a pivot that slides over the battlefield with the camera on a tilted arm.
     /// Arrows / screen edges / middle-mouse drag pan, mouse wheel zooms (the arm also tilts as you zoom),
-    /// Page Up / Page Down or Alt + middle drag rotate, Home resets the rotation.
-    /// (Letter keys are left free for unit commands, as in the Python game.)
+    /// Page Up / Page Down or Alt + middle drag rotate, Backspace resets the rotation, + / - zoom. Keys come from
+    /// Hotkeys (Home jumps to the base, as in Python). A gamepad's left stick pans, the right stick turns and zooms.
     /// </summary>
     public class RtsCamera : MonoBehaviour
     {
@@ -67,22 +67,33 @@ namespace Outpost.View
             transform.position = targetPos;
         }
 
+        /// <summary>One zoom notch: +1 in, -1 out (mouse wheel, + / - keys).</summary>
+        public void ZoomStep(int dir) =>
+            targetDistance = Mathf.Clamp(targetDistance * (dir > 0 ? 0.88f : 1.0f / 0.88f), minDistance, maxDistance);
+
+        public float TargetDistance => targetDistance;
+        public float TargetYaw => targetYaw;
+
         void Update()
         {
             var kb = Keyboard.current;
             var mouse = Mouse.current;
             float dt = Time.unscaledDeltaTime;
             Vector2 move = Vector2.zero;
-            if (kb != null)
-            {
-                if (kb.upArrowKey.isPressed) move.y += 1;
-                if (kb.downArrowKey.isPressed) move.y -= 1;
-                if (kb.rightArrowKey.isPressed) move.x += 1;
-                if (kb.leftArrowKey.isPressed) move.x -= 1;
-                if (kb.pageUpKey.isPressed) targetYaw -= 90f * dt;
-                if (kb.pageDownKey.isPressed) targetYaw += 90f * dt;
-                if (kb.homeKey.wasPressedThisFrame || kb.backspaceKey.wasPressedThisFrame) targetYaw = 0f;
-            }
+            if (Hotkeys.Held("cam_up")) move.y += 1;
+            if (Hotkeys.Held("cam_down")) move.y -= 1;
+            if (Hotkeys.Held("cam_right")) move.x += 1;
+            if (Hotkeys.Held("cam_left")) move.x -= 1;
+            if (Hotkeys.Held("cam_rotate_left")) targetYaw -= 90f * dt;
+            if (Hotkeys.Held("cam_rotate_right")) targetYaw += 90f * dt;
+            if (Hotkeys.Pressed("cam_reset") || Hotkeys.PadPressed("cam_reset")) targetYaw = 0f;
+            if (Hotkeys.Pressed("zoom_in")) ZoomStep(1);
+            if (Hotkeys.Pressed("zoom_out")) ZoomStep(-1);
+            // gamepad: left stick pans, right stick turns (x) and zooms (y)
+            move += Hotkeys.PadMove();
+            var look = Hotkeys.PadLook();
+            targetYaw += look.x * 90f * dt;
+            if (look.y != 0f) targetDistance = Mathf.Clamp(targetDistance * Mathf.Pow(0.88f, look.y * dt * 8f), minDistance, maxDistance);
             if (mouse != null)
             {
                 var mp = mouse.position.ReadValue();
@@ -96,7 +107,7 @@ namespace Outpost.View
                 }
                 float scroll = mouse.scroll.ReadValue().y;
                 if (Mathf.Abs(scroll) > 0.01f)
-                    targetDistance = Mathf.Clamp(targetDistance * (scroll > 0 ? 0.88f : 1.0f / 0.88f), minDistance, maxDistance);
+                    ZoomStep(scroll > 0 ? 1 : -1);
                 if (mouse.middleButton.isPressed)
                 {
                     var md = mouse.delta.ReadValue();

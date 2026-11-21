@@ -8,11 +8,12 @@ using Outpost.Sim;
 namespace Outpost.View
 {
     /// <summary>
-    /// RTS mouse / keyboard controls, matching the Python game:
+    /// RTS mouse / keyboard controls, matching the Python game (scenes/rts.py on_key):
     /// left click / drag select (Shift adds, double-click selects that type on screen), right click moves
-    /// or attacks (sets the rally point with a building selected), A + left click attack-moves,
-    /// F unit ability (aimed ones then take a left click), S stop, H hold, Q whole army, E army on screen,
-    /// G Commander, Ctrl+1-5 / 1-5 groups, Z X C V leader powers (then a left click on the target), Esc cancels.
+    /// or attacks (sets the rally point with a building selected), attack-move + left click, unit ability (aimed ones
+    /// then take a left click), stop, hold, whole army, army on screen, Commander, control groups 1-9, leader powers,
+    /// jump to base / last alert, game speed. Keys come from Hotkeys (rebindable); Handle(id) runs one action.
+    /// Esc / pause, help and the command card keys are HudRoot's; camera keys are RtsCamera's.
     /// </summary>
     public class CommandInput : MonoBehaviour
     {
@@ -35,6 +36,12 @@ namespace Outpost.View
         public Entity hover;
         public string toast;
         public float toastT;
+        /// <summary>Set by the HUD while paused: no orders or keys.</summary>
+        public bool frozen;
+        /// <summary>Game speed (Tab: x1, x1.5, x2 as Python); BattleSession multiplies the clock by it.</summary>
+        public float speed = 1f;
+        /// <summary>Last point the camera was sent to by a key (game pixels), for tests.</summary>
+        public Vector2 lastJump;
 
         readonly List<Entity>[] groups = new List<Entity>[10];
         float lastClickT, lastGroupT;
@@ -184,7 +191,7 @@ namespace Outpost.View
             var mp = mouse.position.ReadValue();
             var gui = Gui(mp);
             hover = OverHud(gui) ? null : Pick(mp);
-            if (battle.winner != null) { dragging = false; return; }
+            if (battle.winner != null || frozen) { dragging = false; return; }
 
             // ---- left button
             if (mouse.leftButton.wasPressedThisFrame && !OverHud(gui))
@@ -279,81 +286,233 @@ namespace Outpost.View
                 }
             }
 
-            if (kb == null) return;
-            bool ctrl = kb.ctrlKey.isPressed;
-            if (kb.escapeKey.wasPressedThisFrame)
+            foreach (var id in KeyActions)
+                if (Hotkeys.Pressed(id)) Handle(id);
+        }
+
+        /// <summary>The battle actions CommandInput answers (Hotkeys ids). Cancel / pause / help / card keys are HudRoot's,
+        /// camera keys RtsCamera's.</summary>
+        public static readonly string[] KeyActions = BuildKeyActions();
+
+        static string[] BuildKeyActions()
+        {
+            var l = new List<string>
             {
-                if (powerAim != null) powerAim = null;
-                else if (scanFrom != null) scanFrom = null;
-                else if (attackMode || abilityMode) attackMode = abilityMode = false;
-                else Select(new Entity[0]);
+                "attack_move", "stop", "hold", "ability", "recycle", "select_army", "select_screen", "select_commander",
+                "jump_base", "jump_alert", "game_speed", "reveal_map", "power_1", "power_2", "power_3", "power_4",
+            };
+            for (int i = 1; i <= Hotkeys.Groups; i++)
+            {
+                l.Add("group_" + i);
+                l.Add("set_group_" + i);
             }
-            if (kb.aKey.wasPressedThisFrame && MyUnits.Any())
+            return l.ToArray();
+        }
+
+        /// <summary>Runs one action, exactly what its key does (tests call this too). False if it did nothing.</summary>
+        public bool Handle(string id)
+        {
+            if (battle == null || id == null) return false;
+            switch (id)
             {
-                attackMode = true;
-                abilityMode = false;
+                case "attack_move":
+                    if (!MyUnits.Any()) return false;
+                    attackMode = true;
+                    abilityMode = false;
+                    return true;
+                case "stop":
+                    battle.OrderStop(MyUnits, false);
+                    return true;
+                case "hold":
+                    battle.OrderStop(MyUnits, true);
+                    return true;
+                case "ability":
+                    TriggerAbility();
+                    return true;
+                case "recycle":
+                    return RecycleSelected();
+                case "select_army":
+                    // Python: combat units (pop > 0), the Commander and the power-dropped Mech
+                    Select(battle.units.Where(u => u.alive && u.faction == "player" && u.inBunker == null &&
+                                                   (u.pop > 0 || u.kind == "commander" || u.kind == "mech")));
+                    return true;
+                case "select_screen":
+                    Select(battle.units.Where(u => u.alive && u.faction == "player" && u.inBunker == null && OnScreen(u)));
+                    return true;
+                case "select_commander":
+                    return SelectCommander();
+                case "jump_base":
+                    return JumpBase();
+                case "jump_alert":
+                    return JumpAlert();
+                case "game_speed":
+                    CycleSpeed();
+                    return true;
+                case "reveal_map":
+                    return ToggleReveal();
             }
-            if (kb.fKey.wasPressedThisFrame) TriggerAbility();
-            if (kb.zKey.wasPressedThisFrame) TriggerPower(0);
-            if (kb.xKey.wasPressedThisFrame) TriggerPower(1);
-            if (kb.cKey.wasPressedThisFrame) TriggerPower(2);
-            if (kb.vKey.wasPressedThisFrame) TriggerPower(3);
-            if (kb.sKey.wasPressedThisFrame) battle.OrderStop(MyUnits, false);
-            if (kb.hKey.wasPressedThisFrame) battle.OrderStop(MyUnits, true);
-            if (kb.deleteKey.wasPressedThisFrame && selection.Count == 1 && selection[0] is Building rb && rb.faction == "player")
+            if (id.StartsWith("power_"))
             {
-                string err = battle.Demolish(rb);
-                Toast(err ?? "Recycled");
+                TriggerPower(int.Parse(id.Substring(6)) - 1);
+                return true;
             }
-            else if (kb.deleteKey.wasPressedThisFrame && selection.Count == 1 && selection[0] is Tower st && st.faction == "player")
+            if (id.StartsWith("set_group_")) return SetGroup(int.Parse(id.Substring(10)));
+            if (id.StartsWith("group_")) return RecallGroup(int.Parse(id.Substring(6)));
+            return false;
+        }
+
+        /// <summary>Is something being aimed or picked that Esc would drop?</summary>
+        public bool HasMode => powerAim != null || scanFrom != null || attackMode || abilityMode || selectedSite != null;
+
+        /// <summary>Esc / P (Python): drops the power, Scan, ability or attack-move being aimed, or the picked pad.
+        /// False when there was nothing to drop (then the HUD pauses).</summary>
+        public bool CancelMode()
+        {
+            if (!HasMode) return false;
+            powerAim = null;
+            scanFrom = null;
+            attackMode = abilityMode = false;
+            abilityOnly = null;
+            selectedSite = null;
+            return true;
+        }
+
+        public static readonly float[] Speeds = { 1f, 1.5f, 2f };
+
+        /// <summary>Tab: x1 -> x1.5 -> x2 -> x1 (Python).</summary>
+        public void CycleSpeed()
+        {
+            int i = System.Array.IndexOf(Speeds, speed);
+            speed = Speeds[(i + 1) % Speeds.Length];
+            Toast("Game speed x" + speed.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture));
+        }
+
+        bool RecycleSelected()
+        {
+            // Python: Del recycles every selected player building and sells every selected player turret
+            string err = null;
+            int sold = 0, recycled = 0, value = 0;
+            foreach (var e in selection.ToList())
             {
-                int value = battle.SellValue(st);
-                string err = battle.SellTower(st);
-                Toast(err ?? $"Sold (+{value})");
-            }
-            if (kb.qKey.wasPressedThisFrame)
-                Select(battle.units.Where(u => u.alive && u.faction == "player" && (u.pop > 0 || u.kind == "commander")));
-            if (kb.eKey.wasPressedThisFrame)
-                Select(battle.units.Where(u => u.alive && u.faction == "player" && OnScreen(u)));
-            if (kb.gKey.wasPressedThisFrame)
-            {
-                var hero = battle.Player.hero;
-                if (hero == null || !hero.alive)
+                if (!e.alive || e.faction != "player") continue;
+                if (e is Tower st)
                 {
-                    if (battle.Player.heroRespawn > 0) Toast($"Commander respawns in {Mathf.CeilToInt(battle.Player.heroRespawn)} s");
+                    int v = battle.SellValue(st);
+                    string r = battle.SellTower(st);
+                    if (r == null) { sold++; value += v; }
+                    else err = r;
                 }
-                else
+                else if (e is Building rb)
                 {
-                    if (selection.Count == 1 && selection[0] == hero) Center(hero);
-                    Select(new Entity[] { hero });
+                    string r = battle.Demolish(rb);
+                    if (r == null) recycled++;
+                    else err = r;
                 }
             }
-            for (int i = 1; i <= 5; i++)
+            string done = sold > 0 ? $"Sold (+{value})" : recycled > 1 ? $"Recycled {recycled}" : recycled > 0 ? "Recycled" : null;
+            if (err != null || done != null) Toast(err ?? done);
+            selection.RemoveAll(e => !e.alive);
+            return sold + recycled > 0;
+        }
+
+        bool SelectCommander()
+        {
+            var hero = battle.Player.hero;
+            if (hero == null || !hero.alive)
             {
-                var key = kb[(Key)((int)Key.Digit1 + i - 1)];
-                if (!key.wasPressedThisFrame) continue;
-                if (ctrl)
-                {
-                    groups[i] = selection.Where(e => e.faction == "player").ToList();
-                    Toast($"Group {i} set ({groups[i].Count})");
-                }
-                else if (groups[i] != null)
-                {
-                    groups[i].RemoveAll(e => !e.alive);
-                    Select(groups[i]);
-                    if (lastGroup == i && Time.unscaledTime - lastGroupT < 0.35f && groups[i].Count > 0) Center(groups[i][0]);
-                    lastGroup = i;
-                    lastGroupT = Time.unscaledTime;
-                }
+                if (battle.Player.heroRespawn > 0) Toast($"Commander respawns in {Mathf.CeilToInt(battle.Player.heroRespawn)} s");
+                return false;
             }
+            if (selection.Count == 1 && selection[0] == hero) Center(hero);
+            Select(new Entity[] { hero });
+            return true;
+        }
+
+        bool SetGroup(int n)
+        {
+            if (n < 1 || n >= groups.Length) return false;
+            groups[n] = selection.Where(e => e.faction == "player").ToList();
+            Toast($"Group {n} set ({groups[n].Count})");
+            return true;
+        }
+
+        bool RecallGroup(int n)
+        {
+            if (n < 1 || n >= groups.Length || groups[n] == null) return false;
+            groups[n].RemoveAll(e => !e.alive);
+            if (groups[n].Count == 0) return false;
+            float now = Time.realtimeSinceStartup;
+            // tapped twice: jump to the middle of the group (Python centers on the average position)
+            if (lastGroup == n && now - lastGroupT < 0.4f)
+                CenterAt(groups[n].Average(e => e.x), groups[n].Average(e => e.y));
+            Select(groups[n]);
+            lastGroup = n;
+            lastGroupT = now;
+            return true;
+        }
+
+        int baseCycle, alertBack;
+        float lastBaseT = -10f, lastAlertT = -10f;
+
+        /// <summary>B / Home: the main base (Python bases_of(player)[0]); pressed again within 2 s, the next base.</summary>
+        public bool JumpBase()
+        {
+            var mine = battle.bases.Where(b => b.faction == "player" && b.Alive).ToList();
+            if (mine.Count == 0) return false;
+            float now = Time.realtimeSinceStartup;
+            baseCycle = now - lastBaseT < 2f ? (baseCycle + 1) % mine.Count : 0;
+            lastBaseT = now;
+            CenterAt(mine[baseCycle].x, mine[baseCycle].y);
+            return true;
+        }
+
+        /// <summary>Space: the newest alert (Python alerts[-1]); pressed again within 2 s, the one before it.</summary>
+        public bool JumpAlert()
+        {
+            var a = battle.alerts;
+            if (a.Count == 0)
+            {
+                Toast("No alerts yet");
+                return false;
+            }
+            float now = Time.realtimeSinceStartup;
+            alertBack = now - lastAlertT < 2f ? Mathf.Min(alertBack + 1, a.Count - 1) : 0;
+            lastAlertT = now;
+            var note = a[a.Count - 1 - alertBack];
+            CenterAt(note.pos.x, note.pos.y);
+            return true;
+        }
+
+        /// <summary>F9 in the editor and development builds: lift or drop the fog (Python debug reveal).</summary>
+        bool ToggleReveal()
+        {
+            if (!Application.isEditor && !Debug.isDebugBuild) return false;
+            var g = battle.FogOf("player");
+            if (g == null) return false;
+            if (!g.revealAll)
+            {
+                battle.RevealMap();
+                Toast("Map revealed (debug)");
+            }
+            else
+            {
+                foreach (var f in battle.fog.Values) f.revealAll = false;
+                battle.UpdateFog();
+                Toast("Fog back on (debug)");
+            }
+            return true;
         }
 
         bool OnScreen(Entity e) =>
             ScreenOf(e, out var p, out _) && p.x >= 0 && p.y >= 0 && p.x <= Screen.width && p.y <= Screen.height;
 
-        public void Center(Entity e)
+        public void Center(Entity e) => CenterAt(e.x, e.y);
+
+        /// <summary>Moves the camera over a point (game pixels). Remembered in lastJump for tests.</summary>
+        public void CenterAt(float x, float y)
         {
-            if (rig != null) rig.JumpTo(MapBuilder.Ground(map, e.x, e.y));
+            lastJump = new Vector2(x, y);
+            if (rig != null && map != null) rig.JumpTo(MapBuilder.Ground(map, x, y));
         }
 
         void ClickSelect(Vector2 mp, bool shift)

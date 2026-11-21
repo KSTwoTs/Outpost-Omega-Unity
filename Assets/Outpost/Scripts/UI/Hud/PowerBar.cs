@@ -24,6 +24,7 @@ namespace Outpost.UI
         Battle battle;
         CommandInput input;
         int hovered = -1;
+        readonly List<Label> keys = new List<Label>();
 
         public PowerBar()
         {
@@ -34,7 +35,8 @@ namespace Outpost.UI
                 int index = i;
                 var el = Ui.Button("op-panel op-power", () => input?.TriggerPower(index));
                 var fill = Ui.Box("op-power__fill");
-                var key = Ui.Text(Battle.PowerKeys[i], "op-power__key");
+                var key = Ui.Text(Hotkeys.Label("power_" + (i + 1)), "op-power__key");
+                keys.Add(key);
                 var name = Ui.Text("", "op-power__name");
                 var sub = Ui.Text("", "op-power__sub");
                 el.Add(fill);
@@ -72,6 +74,7 @@ namespace Outpost.UI
                 string pid = ids[i];
                 float cd = battle.PowerCdLeft(pid), full = Mathf.Max(1f, battle.PowerCooldown(pid));
                 s.name.text = battle.PowerName(pid);
+                keys[i].text = Hotkeys.Label("power_" + (i + 1));
                 s.sub.text = cd > 0 ? Ui.Secs(cd) : battle.PowerCost(pid).ToString();
                 s.fill.style.width = Length.Percent(Mathf.Clamp01(cd / full) * 100f);
                 bool ready = battle.CanPower(pid) == null;
@@ -85,7 +88,9 @@ namespace Outpost.UI
             {
                 string pid = ids[hovered];
                 string why = battle.CanPower(pid);
-                tipText.text = $"<b>{battle.PowerName(pid)}</b>   {battle.PowerCost(pid)} Supplies   <color=#96a6bc>({Battle.PowerKeys[hovered]})</color>\n" +
+                float radius = GameData.F(battle.PowerDef(pid), "radius");
+                tipText.text = $"<b>{battle.PowerName(pid)}</b>   {battle.PowerCost(pid)} Supplies · cooldown {Mathf.RoundToInt(battle.PowerCooldown(pid))} s" +
+                               (radius > 0 ? $" · radius {Mathf.RoundToInt(radius)}" : "") + $"   <color=#96a6bc>({Hotkeys.Label("power_" + (hovered + 1))})</color>\n" +
                                battle.PowerDesc(pid) + (why != null ? $"\n<color=#ff8270>{why}</color>" : "\nThen left click the target on the map.");
             }
         }

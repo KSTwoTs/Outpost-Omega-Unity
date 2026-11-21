@@ -21,9 +21,23 @@ namespace Outpost.UI
         public Fx fx;
         public System.Action restart;
         public bool paused;
+        /// <summary>Pause screen: back to the menu (BattleSession sets it when the game flow is running; null = no button).</summary>
+        public System.Action quit;
+        /// <summary>The end screen's button: Play again (Battle.unity played directly) or Continue (to the results screen).</summary>
+        public string endButtonText = "Play again";
+        /// <summary>Pause menu RESTART: same setup, new seed (BattleSession sets it; null = no button).</summary>
+        public System.Action restartFromPause;
+        /// <summary>The pause menu, and the settings screen opened from it (BattleSession hands it over with SetSettings).</summary>
+        [System.NonSerialized] public PauseMenu pauseMenu;
+        [System.NonSerialized] public SettingsScreen settings;
+        bool settingsOpen;
+        public bool SettingsOpen => settingsOpen;
 
         UIDocument doc;
-        VisualElement root, help, helpHint, overlay, overlayButton;
+        VisualElement root, helpHint, overlay, overlayButton;
+        /// <summary>The controls overlay (F1) and the first-match hints (BattleSession starts them).</summary>
+        [System.NonSerialized] public HelpOverlay helpOverlay;
+        [System.NonSerialized] public FirstMatchHints hints;
         Label overlayTitle, overlaySub, overlayButtonText;
         ResourceBar resources;
         AlertsPanel alerts;
@@ -32,18 +46,8 @@ namespace Outpost.UI
         MinimapPanel minimap;
         PowerBar powers;
         float refreshT;
-        bool showHelp = true;
-
-        const string HelpText =
-            "<b>Controls</b>  <color=#96a6bc>(F1 hides)</color>\n" +
-            "<b>Select:</b> left click or drag \u00b7 Shift adds \u00b7 double-click takes all of that type\n" +
-            "<b>Orders:</b> right click to move or attack \u00b7 A attack-move \u00b7 S stop \u00b7 H hold \u00b7 F ability\n" +
-            "<b>Powers:</b> Z X C V leader powers (or click the bar at the top), then left click the target\n" +
-            "<b>Army:</b> Q whole army \u00b7 E army on screen \u00b7 G Commander \u00b7 Ctrl+1-5 set group \u00b7 1-5 recall\n" +
-            "<b>Camera:</b> arrows, screen edge or middle drag \u00b7 wheel zooms \u00b7 Page Up/Down rotates \u00b7 Home resets\n" +
-            "<b>Minimap:</b> left click moves the camera \u00b7 right click sends the selected units\n" +
-            "<b>Building:</b> select the Command Post \u00b7 hover a button for details \u00b7 right click sets a rally point\n" +
-            "P pauses.  <color=#ffd77a>Goal: destroy the alien Hive.</color>";
+        bool showHelp;
+        int helpVersion = -1;
 
         void Awake()
         {
@@ -59,6 +63,7 @@ namespace Outpost.UI
             settings.screenMatchMode = PanelScreenMatchMode.MatchWidthOrHeight;
             settings.match = 1f;                      // sizes follow the screen's height
             doc.panelSettings = settings;
+            Ui.Track(settings);
             go.SetActive(true);
             if (settings.themeStyleSheet == null) Debug.LogError("[Outpost] Resources/UI/OutpostTheme.tss is missing: the HUD has no theme.");
 
@@ -83,9 +88,10 @@ namespace Outpost.UI
             bottom.Add(selection.root);
             bottom.Add(cardWrap);
 
-            help = Ui.Box("op-panel op-help", true);
-            help.Add(Ui.Text(HelpText, "op-wrap"));
-            helpHint = Ui.Text("F1: controls", "op-help-hint");
+            helpOverlay = new HelpOverlay();
+            helpOverlay.onClose = () => showHelp = false;
+            hints = new FirstMatchHints();
+            helpHint = Ui.Text(Hotkeys.Label("help") + ": controls", "op-help-hint");
 
             overlay = Ui.Box("op-overlay", true);
             overlay.Add(overlayTitle = Ui.Text("", "op-overlay__title"));
@@ -93,6 +99,8 @@ namespace Outpost.UI
             overlayButton = Ui.Button("op-button", OverlayClick);
             overlayButton.Add(overlayButtonText = Ui.Text(""));
             overlay.Add(overlayButton);
+            pauseMenu = new PauseMenu();
+            pauseMenu.onResume = () => paused = false;
 
             root.Add(alerts.root);
             root.Add(alerts.toast);
@@ -101,10 +109,13 @@ namespace Outpost.UI
             root.Add(resources.root);
             root.Add(powers.root);
             root.Add(powers.tip);
-            root.Add(help);
+            root.Add(hints.root);
+            root.Add(helpOverlay.root);
             root.Add(helpHint);
             root.Add(overlay);
             Ui.Show(overlay, false);
+            root.Add(pauseMenu.root);
+            Ui.Show(pauseMenu.root, false);
         }
 
         /// <summary>Points the HUD at a (new) battle.</summary>
@@ -115,6 +126,9 @@ namespace Outpost.UI
             fx = effects;
             restart = onRestart;
             paused = false;
+            CloseSettings();
+            hints.Stop();
+            showHelp = false;
             selection.Bind(b, inp);
             card.Bind(b, inp);
             minimap.Bind(b, inp, rig, map, minimapPicture);
@@ -133,6 +147,36 @@ namespace Outpost.UI
             return hit != null && hit != root;
         }
 
+        /// <summary>Puts the settings screen into the HUD (shown from the pause menu).</summary>
+        public void SetSettings(SettingsScreen s)
+        {
+            if (settings != null) settings.root.RemoveFromHierarchy();
+            settings = s;
+            if (s == null) return;
+            s.onBack = CloseSettings;
+            s.root.AddToClassList("op-settings--overlay");
+            root.Add(s.root);
+            Ui.Show(s.root, false);
+        }
+
+        /// <summary>Pause menu SETTINGS: the battle stays paused while it is open.</summary>
+        public void OpenSettings()
+        {
+            if (settings == null) return;
+            settingsOpen = true;
+            paused = true;
+            settings.Open();
+            Ui.Show(settings.root, true);
+            Ui.Show(pauseMenu.root, false);
+        }
+
+        public void CloseSettings()
+        {
+            settingsOpen = false;
+            if (settings != null) Ui.Show(settings.root, false);
+            refreshT = 0;
+        }
+
         void OverlayClick()
         {
             if (battle == null) return;
@@ -144,45 +188,65 @@ namespace Outpost.UI
         {
             PortraitLibrary.Tick();
             if (battle == null || input == null) return;
-            var kb = Keyboard.current;
-            if (kb != null)
+            // Esc / P (Python): resume if paused, else drop whatever is being aimed, else pause
+            if (settingsOpen)
             {
-                if (kb.pKey.wasPressedThisFrame && battle.winner == null) paused = !paused;
-                if (kb.f1Key.wasPressedThisFrame) showHelp = !showHelp;
+                settings.Tick();
+                if (Hotkeys.PressedAny("cancel") || Hotkeys.PressedAny("menu_back")) settings.Back();
+            }
+            else if (battle.winner == null && (Hotkeys.PressedAny("pause") || Hotkeys.PressedAny("cancel")))
+            {
+                if (paused) paused = false;
+                else if (!input.CancelMode()) paused = true;
+            }
+            if (Hotkeys.PressedAny("help")) showHelp = !showHelp;
+            input.frozen = paused;
+            Markers.Suppressed = paused || settingsOpen || showHelp;
+            if (!paused && battle.winner == null)
+                for (int i = 0; i < Hotkeys.CardGrid.Length; i++)
+                    if (Hotkeys.Pressed("card_" + (i + 1))) card.Press(i);
+            if (helpVersion != Hotkeys.Version)
+            {
+                helpVersion = Hotkeys.Version;
+                ((Label)helpHint).text = Hotkeys.Label("help") + ": controls";
             }
             alerts.Refresh(fx, input);
             refreshT -= Time.unscaledDeltaTime;
             if (refreshT > 0) return;
             refreshT = 0.1f;
 
-            resources.Refresh(battle);
+            resources.Refresh(battle, input.speed);
             selection.Refresh();
             card.Refresh();
             minimap.Refresh();
             powers.Refresh();
-            Ui.Show(help, showHelp);
+            bool ended = battle.winner != null;
+            if (showHelp != helpOverlay.Visible) helpOverlay.Show(showHelp);
+            if (showHelp) helpOverlay.Refresh();
             Ui.Show(helpHint, !showHelp);
-
-            bool over = battle.winner != null || paused;
-            Ui.Show(overlay, over);
-            if (!over) return;
+            hints.Tick(0.1f, !paused && !ended && !settingsOpen && !showHelp);
+            Ui.Show(overlay, ended);
+            bool showPause = paused && !ended && !settingsOpen;
+            Ui.Show(pauseMenu.root, showPause);
+            if (showPause)
+            {
+                pauseMenu.onSettings = settings != null ? (System.Action)OpenSettings : null;
+                pauseMenu.onRestart = restartFromPause != null ? (System.Action)(() => restartFromPause()) : null;
+                pauseMenu.onQuit = quit != null ? (System.Action)(() => quit()) : null;
+                pauseMenu.Refresh("Time " + Ui.Clock(battle.time));
+            }
+            if (!ended) return;
             if (battle.winner == "player")
             {
                 overlayTitle.text = "<color=#78eb96>VICTORY</color>";
                 overlaySub.text = $"Time {Ui.Clock(battle.time)}";
-                overlayButtonText.text = "Play again";
+                overlayButtonText.text = endButtonText;
             }
             else if (battle.winner != null)
             {
                 overlayTitle.text = "<color=#ff8270>DEFEAT</color>";
                 overlaySub.text = $"Time {Ui.Clock(battle.time)}";
-                overlayButtonText.text = "Play again";
-            }
-            else
-            {
-                overlayTitle.text = "PAUSED";
-                overlaySub.text = "";
-                overlayButtonText.text = "Resume";
+                overlayButtonText.text = endButtonText;
             }
         }
     }

@@ -2,7 +2,7 @@
 
 This is the target layout for the whole project and the rules that keep it tidy. Files marked **now** exist today; everything else is tagged with the roadmap step that creates it (M1.3 = Milestone 1, step 3). When a step lands, its files go where this document says, and the document is updated if the plan changes.
 
-**Placeholders (Nov 18).** Every planned script below already exists as an empty placeholder: a header comment saying what it will hold and which step fills it, and an empty namespace, so it compiles to nothing. A step fills its placeholder in rather than creating the file. The housekeeping pass (Nov 19) moved the code out of `Battle.cs`, `Entities.cs`, `AlienAI.cs` and `MapBuilder.cs` into the matching placeholders and moved the remaining files into `Sim/Core/` and `Sim/AI/`. Empty asset folders hold a `.gitkeep` so git keeps them. Not created yet: the scenes `Boot.unity` and `MainMenu.unity` (made in the editor at M2), `Battle.unity` (a rename of Skirmish.unity), `audio.json` (M4), and anything for Classic Defense (undecided). Rigged animation was decided on Nov 20 (M5): `Art/Models/` and `Art/Animations/` exist with a `.gitkeep`. Placeholders in `Input/` use the `Outpost.View` namespace like `CommandInput` does, because a namespace called `Outpost.Input` would hide Unity's `Input` class inside the project.
+**Placeholders (Nov 18).** Every planned script below already exists as an empty placeholder: a header comment saying what it will hold and which step fills it, and an empty namespace, so it compiles to nothing. A step fills its placeholder in rather than creating the file. The housekeeping pass (Nov 19) moved the code out of `Battle.cs`, `Entities.cs`, `AlienAI.cs` and `MapBuilder.cs` into the matching placeholders and moved the remaining files into `Sim/Core/` and `Sim/AI/`. Empty asset folders hold a `.gitkeep` so git keeps them. The scenes `Boot.unity` and `MainMenu.unity` were made and `Skirmish.unity` was renamed to `Battle.unity` (GUID kept) in M2 group 1 (Nov 21); `SkirmishBootstrap.cs` was removed then (BattleSession + BattleView replace it). Not created yet: `audio.json` (M4), and anything for Classic Defense (undecided). Rigged animation was decided on Nov 20 (M5): `Art/Models/` and `Art/Animations/` exist with a `.gitkeep`. Placeholders in `Input/` use the `Outpost.View` namespace like `CommandInput` does, because a namespace called `Outpost.Input` would hide Unity's `Input` class inside the project.
 
 **Milestones (Nov 20).** Six milestones: M1 Skirmish, M2 front end, M3 map generator plus campaign and Siege Run systems (Siege Run battles on generated maps), M4 sound, performance and smaller modes, M5 art, maps and levels (final art and animation, reactive world, hand-made maps, Map Builder on the M3 generator, campaign levels), M6 balance and release. Until M5 the game keeps today's models, the four Medium maps and placeholder looks.
 
@@ -47,9 +47,10 @@ Outpost-Omega-Unity/
    │  └─ audio.json                M4 · which sound plays for which event
    └─ Outpost/
       ├─ Scenes/
-      │  ├─ Boot.unity             M2 · first scene: loads settings and saves, opens the menu
-      │  ├─ MainMenu.unity         M2
-      │  ├─ Battle.unity           now as Skirmish.unity · renamed at M2, used by every mode
+      │  ├─ Boot.unity             now · first scene (GameFlow object): loads settings and saves (group 3), opens the menu
+      │  ├─ MainMenu.unity         now · camera + light only; GameFlow draws the menu screens here (played directly, GameFlow makes itself)
+      │  ├─ Battle.unity           now · renamed from Skirmish.unity at M2 (GUID kept), BattleSession object; used by every mode;
+      │  │                         played directly it starts a default Skirmish from the BattleSession inspector fields
       │  └─ Sandbox.unity          now · model look test
       ├─ Scripts/
       │  ├─ Content/               (layer 1)
@@ -88,8 +89,9 @@ Content/
 Sim/
 ├─ Core/
 │  ├─ Battle.cs               now · the battle: lists of everything, Tick, setup, victory
-│  ├─ BattleConfig.cs         M2 · everything that defines one battle: map, size, difficulty, leader,
-│  │                                loadout, mode rules, strains. The only way a battle is created
+│  ├─ BattleConfig.cs         now · everything that defines one battle: map, size, difficulty, leader,
+│  │                                loadout, seed (M3: mode rules, strains). Create(map, fx, beforeStart) is how the game makes a battle
+│  │                                (rules tests may still call new Battle(map)); also BattleResult (the results screen's numbers)
 │  ├─ IBattleFx.cs            now · split out of Battle.cs; M1.5 added TowerFired, Ability and Float, M1.6 Power (notifications only)
 │  ├─ GameData.cs             now · reads the JSON data
 │  ├─ NavGrid.cs              now · walkable tiles and pathfinding
@@ -109,10 +111,11 @@ Sim/
 │  ├─ Battle.Economy.cs       now · income, hero respawn timer, pop cap, tech
 │  ├─ Battle.MapControl.cs    now · expansions, wild nests, relays, crates, recycling
 │  ├─ Battle.Towers.cs        now · the tower update · M1.4 adds the full loadout, tiers, upgrade and sell
-│  ├─ TowerBehaviors.cs       M1.4 · the behavior types that cover all 34 towers
+│  ├─ TowerBehaviors.cs       now · the behavior types that cover all 34 towers; M2: loadout rules (PerCategory, TowersIn,
+│  │                                CleanLoadout, ToggleLoadout). Battle.BuildTower refuses towers outside Faction.loadout
 │  ├─ Battle.Bunkers.cs       M1.4 · bunkers and garrisons
 │  ├─ Battle.Powers.cs        now · leader powers (Z X C + the leader's V) and alien powers; cooldowns tick in Economy
-│  ├─ Leaders.cs              now · the 9 leaders' passives (SetLeader, costs, structure HP) · M2: picked on SkirmishSetup
+│  ├─ Leaders.cs              now · the 9 leaders' passives (SetLeader, costs, structure HP) · picked on SkirmishSetup / CommandersScreen since M2
 │  └─ Fog.cs                  now · fog of war per side, what each side has seen (Seen), the positioned alert log
 ├─ AI/
 │  ├─ AlienAI.cs              now · the Swarm's commander
@@ -141,14 +144,14 @@ Sim/
 
 ```
 View/
-├─ BattleView.cs         M2 · owns the picture of one battle (replaces the view half of SkirmishBootstrap)
+├─ BattleView.cs         now · owns the picture of one battle: camera rig, World (terrain, lighting, Fx, fog, props), input, markers
 ├─ EntityView.cs         now · one unit, building or tower on screen: stepping, attack pose, lean, banking,
 │                              turret tracking, falling over on death
 ├─ UnitAnimator.cs       now · ModelRig: swaps a model between its exported poses, aims turret parts, spins rotors
 │                              (placeholder: replaced at M5 by Animator-driven rigged characters)
 │                              (which parts move comes from the model pack's index, so there is no rig file)
 ├─ BaseApron.cs          now · the connected base platform
-├─ RtsCamera.cs          now · also camera shake (Shake / ShakeAt) since M1.5
+├─ RtsCamera.cs          now · also camera shake (Shake / ShakeAt) since M1.5; keys from Hotkeys, + / - zoom and gamepad sticks since M2
 ├─ Effects/
 │  ├─ Fx.cs              now · the IBattleFx receiver; hands work to the files below (moved here from View/ at M1.5)
 │  ├─ WeaponEffects.cs   now · muzzle flashes, tracers, projectiles, explosions, beams, lightning, patches, deaths,
@@ -159,6 +162,7 @@ View/
 │  ├─ Lighting.cs        now · sun, shadows, ambient, haze, post Volume (tonemap, grade, bloom, vignette) and lava/acid glow per map theme (Mood)
 │  ├─ FogView.cs         now · draws the fog of war (sheet over the ground, one texel per tile)
 │  ├─ Markers.cs         now · health, shield and progress bars over units, rank stars, relay capture bars, the drag box
+│  │                          (Suppressed while the HUD shows pause, settings or controls; M2 group 4)
 │  ├─ MapProps.cs        now · base site pads, base aprons, relay towers (by owner), supply crates
 │  ├─ Creep.cs           M5 · creep spreading around alien bases
 │  ├─ Decals.cs          M5 · craters, scorch marks, tracks
@@ -168,8 +172,11 @@ View/
    └─ Music.cs           M4
 
 Input/
-├─ CommandInput.cs       now in View/ · selection, orders, aim modes · moves here at M2 with Hotkeys
-├─ Hotkeys.cs            M2 · every key in one table, rebinding
+├─ CommandInput.cs       now · selection, orders, aim modes; Handle(id) runs every battle key action (moved here from View/
+│                              at M2 with AssetDatabase.MoveAsset, GUID and namespace Outpost.View kept); game speed, base / alert jumps
+├─ Hotkeys.cs            now · every key in one table (65 actions: id, context battle/menu, default keys, description, pad button),
+│                              Pressed / Held / Labels, Rebind (the other action loses the key), ToJson / FromJson,
+│                              LoadHook / SaveHook (set by Game/Settings.cs: settings.json "controls"), basic gamepad (sticks, A / B / Start / Select / D-pad)
 └─ SecondPlayer.cs       M4 · the co-op Commander (keys or controller)
 ```
 
@@ -180,23 +187,28 @@ Built with Unity's UI Toolkit. Each panel is laid out in C#, one small class per
 ```
 UI/
 ├─ Hud/                       now
-│  ├─ HudRoot.cs              now · builds the HUD, tells each panel which battle to show, help, pause and end screens
+│  ├─ HudRoot.cs              now · builds the HUD, tells each panel which battle to show, help, end screen; hosts the
+│  │                               PauseMenu and the SettingsScreen opened from it (M2 group 3)
 │  ├─ ResourceBar.cs          now · supplies, income, pop, tech, clock, next attack, Commander respawn
 │  ├─ SelectionPanel.cs       now · portrait, health, shield, stats, buffs, the build queue; a tile per type for groups
-│  ├─ CommandCard.cs          now · the 5 x 3 button grid: orders, abilities, build, turrets, train, research, upgrades, Scan
+│  ├─ CommandCard.cs          now · the 5 x 3 button grid: orders, abilities, build, turrets, train, research, upgrades, Scan;
+│  │                                each button shows its key; grid hotkeys Alt + Q-T / A-G / Z-B (Hotkeys card_1-15, Press(i)) since M2
 │  ├─ MinimapPanel.cs         now · with fog and alert pings
-│  ├─ AlertsPanel.cs          now · messages, aim-mode banner, toast · M2 adds the "last alert" jump
+│  ├─ AlertsPanel.cs          now · messages, aim-mode banner, toast (the last-alert jump is CommandInput.JumpAlert, Space, since M2)
 │  ├─ PowerBar.cs             now · Z X C V leader powers (top centre; aiming goes through CommandInput.powerAim)
 │  ├─ ObjectivesPanel.cs      M3 · campaign objectives
 │  └─ BossBar.cs              M3 · Siege Run boss health and phases
-├─ Menus/                     M2
-│  ├─ MainMenu.cs
-│  ├─ SkirmishSetup.cs        map, size, difficulty, leader, tower loadout
-│  ├─ CommandersScreen.cs     the roster with its four tabs
-│  ├─ ResultsScreen.cs        win or lose, stats, per-map records
-│  ├─ PauseMenu.cs
-│  ├─ SettingsScreen.cs       video, audio, controls
-│  └─ HelpOverlay.cs          controls and first-match hints
+├─ Menus/                     M2 (built in C# like the HUD, shown by GameFlow on one menu document)
+│  ├─ MainMenu.cs             now · the mode list (modes not built yet are dimmed)
+│  ├─ SkirmishSetup.cs        now · map (with preview), size, difficulty, leader card, tower loadout (3 per category)
+│  ├─ CommandersScreen.cs     now · the roster with its four tabs; PassiveLines / PowerRows / ClassicLines text from data
+│  ├─ ResultsScreen.cs        now · win, lose or left, stats; per-map record line from GameFlow.RecordResult (group 3)
+│  ├─ PauseMenu.cs            now · RESUME, SETTINGS, RESTART, QUIT TO MENU (shown by HudRoot; M2 group 3)
+│  ├─ SettingsScreen.cs       now · tabs VIDEO / AUDIO / CONTROLS (key rebinding) / GAMEPLAY, APPLY / REVERT / BACK;
+│  │                               edits an ISettingsModel (Game/Settings.Model) so UI never reaches into Game
+│  └─ HelpOverlay.cs          now · HelpOverlay (F1 controls overlay built from the Hotkeys table), Tips (tooltip text
+│                                    with real numbers: units + counters, buildings, turrets per tier, research) and
+│                                    FirstMatchHints (first Skirmish, shown once, save.json hints_seen; M2 group 4)
 ├─ Campaign/                  M3
 │  ├─ CampaignScreen.cs       the ten operations and their progress
 │  └─ BriefingScreen.cs       briefings, debriefs, radio lines
@@ -209,7 +221,8 @@ UI/
 │  ├─ CommandModesScreen.cs
 │  └─ MapBuilderScreen.cs   M5
 └─ Shared/
-   └─ Ui.cs                   now · element helpers (boxes, text, buttons, bars, portraits) and how
+   └─ Ui.cs                   now · element helpers (boxes, text, buttons, bars, portraits; M2: Document, TextButton,
+                                    Heading, Para, Bullets; M2 group 3: UI scale Track / SetScale) and how
                                     numbers and times are written
 ```
 
@@ -217,12 +230,15 @@ UI/
 
 ```
 Game/
-├─ SkirmishBootstrap.cs   now · builds a hard-coded battle · replaced at M2 by the three files below
-├─ GameFlow.cs            M2 · moves between Boot, the menu and a battle; knows which mode is running
-├─ BattleSession.cs       M2 · takes a BattleConfig, creates the Battle, BattleView and HUD, runs the clock
+├─ GameFlow.cs            now · moves between Boot, the menu and a battle; knows which mode is running; owns the menu
+│                               screens, the last setup, the Commander pick, the last result; loads / writes the save and settings
+├─ BattleSession.cs       now · takes a BattleConfig (Pending), creates the Battle, BattleView and HUD, runs the clock,
+│                               hands a BattleResult to GameFlow (Finished)
 ├─ ModeRunner.cs          M3 · attaches the right director (Mission, SiegeRun node, LastStand...) to a session
-├─ SaveData.cs            M2 · the save file: records, unlocks, Commander, loadout, campaign, run in progress
-├─ Settings.cs            M2 · video, audio, key bindings
+├─ SaveData.cs            now · save.json (persistentDataPath, Python key names): records, unlocks, Commander, last
+│                               setup + loadout, campaign / run placeholders; safe write (.tmp -> replace, .bak), SafeJson
+├─ Settings.cs            now · settings.json: video, audio, key bindings (Hotkeys.LoadHook / SaveHook), gameplay;
+│                               Apply(), and Model() = what SettingsScreen edits
 └─ MapBuilder/            M5 · the in-game map editor's tools (paint, place, mirror, save, test)
 ```
 
@@ -236,7 +252,8 @@ Editor/
 ├─ HeadlessMatch.cs     now · full matches without graphics, for checking rules changes; scripted players
 │                               efficient / steady / casual / idle and BalanceTable() for the difficulty check (M1.9)
 ├─ ParityCheck.cs       M6 · runs the same scripted fights as the Python game and compares
-├─ ContentImport.cs     M2 · one click to re-run the Python export for data, maps or models
+├─ ContentImport.cs     now · Outpost > Content: Export Data (C# copy of data/*.json), Export Models (runs
+│                              tools/export_unity.py with the Python .venv); maps not offered (M2 group 4)
 └─ BuildTools.cs        M6 · makes the Windows build
 ```
 

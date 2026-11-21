@@ -36,6 +36,8 @@ namespace Outpost.Sim
         public float time;
         public string winner;
         public AlienAI ai;
+        /// <summary>How this battle was made (BattleConfig.Create); null in rules tests that call new Battle(map) directly.</summary>
+        public BattleConfig config;
 
         public Faction Player => factions["player"];
         public Faction Alien => factions["alien"];
@@ -60,6 +62,7 @@ namespace Outpost.Sim
             hh = Mathf.CeilToInt(grid.PxH / Cell) + 1;
             cells = new List<Entity>[hw * hh];
             for (int i = 0; i < cells.Length; i++) cells[i] = new List<Entity>();
+            Player.loadout.AddRange(TowerBehaviors.DefaultLoadout());   // rts.py default when no loadout is given
             SetLeader(leader);
         }
 

@@ -93,6 +93,7 @@ namespace Outpost.Sim
             var f = factions[faction];
             if (f.res + 1e-3f < amount) return false;
             f.res -= amount;
+            f.spent += amount;
             return true;
         }
 
@@ -155,10 +156,21 @@ namespace Outpost.Sim
             bool human = b.faction != "alien" && b.faction != "wild";
             if (human ? kind == "spine" : kind != "spine") return "Can't build that";
             if (kind != "spine" && kind != "bunker" && GameData.Tower(kind) == null) return "Unknown tower";
+            if (human && kind != "bunker" && !factions[b.faction].loadout.Contains(kind)) return "Not in your loadout";
             int cost = TowerCost(kind);
             if (!Pay(b.faction, cost)) return "Not enough " + factions[b.faction].ResName;
             PlaceTower(b, s, kind, false).costPaid = cost;
             return null;
+        }
+
+        /// <summary>
+        /// The towers the player may build (sim.py player.loadout): unknown or disabled kinds are dropped and at most
+        /// TowerBehaviors.PerCategory per category are kept. The Bunker is always allowed. null = the default loadout.
+        /// </summary>
+        public void SetLoadout(System.Collections.Generic.IEnumerable<string> kinds)
+        {
+            Player.loadout.Clear();
+            Player.loadout.AddRange(TowerBehaviors.CleanLoadout(kinds ?? TowerBehaviors.DefaultLoadout()));
         }
 
         /// <summary>Starts a research at the building that offers it (rts.json buildings.*.research).</summary>
